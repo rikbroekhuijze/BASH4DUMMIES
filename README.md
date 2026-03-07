@@ -16,7 +16,7 @@ Geen cryptische one-liners, maar begrijpelijke tools voor normale mensen.
 
 ```bash
 # Vervang "wereld" door "iedereen" in een string
-REPLACE "Hallo wereld" wereld "iedereen"
+REPLACE "Hallo wereld" wereld iedereen
 
 # Vervang "oud" door "nieuw" in een bestand (via pipe)
 cat document.txt | REPLACE oud nieuw
