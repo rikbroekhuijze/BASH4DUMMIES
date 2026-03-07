@@ -22,9 +22,6 @@ REPLACE "Hallo wereld" wereld "iedereen"
 cat document.txt | REPLACE oud nieuw
 
 # Meerdere regels tegelijk vervangen
-cat artikel.txt | REPLACE "Copyright 2023" "Copyright 2024"
-
-# Zoek naar bestanden (in plaats van find met ingewikkelde flags)
-FINDHERE "*.txt"
+cat mijn_levensverhaal.txt | REPLACE 'Deze hier is punk en anarchist' 'Deze hier is getrouwd en hij vist'
 
 # Nog meer snippets volgen snel...
