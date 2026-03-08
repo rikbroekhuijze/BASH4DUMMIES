@@ -1,0 +1,157 @@
+#!/bin/bash
+
+VERSION="0.3"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    
+    echo
+    echo "Usage: $MYBASENAME \$x[ \$y[ z]]"
+    echo
+    
+    echo "Returns a string defined in \$x where on both sides <CR>, <NL>, <TAB> and <SPACE> have been removed. If other characters need to be chopped then these can be specified in the optional \$y. The optional parameter z defines where the chopping must take place: 0 means on both sides, 1 means chop at the left and 2 means chop at the right."
+
+    echo
+    echo "Options:"
+    echo "  -h, --help        Show this help message"
+    echo "  -v, --version     Show version information"
+    echo 
+    echo "Examples:"
+    echo "  $MYBASENAME \" one two three four \""
+    echo "  echo \" one two three four \" | $MYBASENAME"
+    echo "  echo \"'one two three four'\" | $MYBASENAME \"'or\"" 
+    echo   
+    
+}
+
+# Verwerk de argumenten
+args=()
+
+if [ -t 0 ]; then
+  # No stdin input, use haystack from command line
+  true
+else
+  # Read args from stdin
+  read -r var
+  if [ ! -z "$var" ] ; then
+    args+=("$var")
+  fi
+fi
+
+for arg in "$@"; do
+
+  case "$arg" in
+  
+    -h|--help)
+       show_usage
+       exit 0
+       ;;
+    
+    -v|--version)
+       echo "$VERSION"
+       exit 0
+       ;;
+     
+    *)
+       # Continue with normal operation
+       args+=("$arg")
+       ;;
+     
+  esac
+ 
+done
+
+if [ "${#args[@]}" -lt "1" ] ; then
+  echo >&2
+  echo "ERROR! Could not bake any bread from this." >&2
+  show_usage
+  exit 123
+fi
+
+if [ "${#args[@]}" -gt "3" ] ; then
+  echo >&2
+  echo "ERROR! Could not bake any bread from this." >&2
+  show_usage
+  exit 123
+fi
+
+x="${args[0]}"
+y="${args[1]}"
+z="${args[2]}"
+
+if [ -z $y ] ; then
+  y=" "
+fi
+
+# if ! [[ $z =~ ^[0-9]+$ ]]; then
+if ! [ -z "$z" ] ; then
+  for ((abc=0; abc<3; abc++)); do
+    toggle=0
+    if [ "$z" = "$abc" ] ; then
+      toggle=1
+      break
+    fi
+  done
+  if ! [ "$toggle" = "1" ] ; then
+    echo "ERROR! z must be an integer between 0 and 2." >&2
+    show_usage
+    exit 123
+  fi
+else
+  z="0"
+fi
+
+# Trim van de voorkant
+if [ "$z" = "0" ] || [ "$z" = "1" ] ; then
+ 
+  while [ "0" = "0" ] ; do 
+    
+    toggle="0"
+    for ((abc=0; abc<${#y}; abc++)); do
+     
+      char="${y:$abc:1}"
+      
+      if [ "${x:0:1}" = "$char" ] ; then
+        toggle="1"
+        x="${x#${char}}"
+      fi
+      
+    done
+    
+    if  [ "$toggle" = "0" ] ; then 
+      break
+    fi
+    
+  done
+  
+fi
+
+echo  
+# Trim van de achterkant
+if [ "$z" = "0" ] || [ "$z" = "2" ] ; then
+  
+  while [ "0" = "0" ] ; do 
+    
+    toggle="0"
+    
+    for ((abc=0; abc<${#y}; abc++)); do
+      
+      char="${y:$abc:1}"
+      
+      if [ "${x:${#x}-1:1}" = "$char" ] ; then
+        
+        toggle="1"
+        x="${x%${char}}"
+        
+      fi
+      
+    done
+    
+    if  [ "$toggle" = "0" ] ; then 
+      break
+    fi
+  done
+  
+fi
+ 
+echo $x
