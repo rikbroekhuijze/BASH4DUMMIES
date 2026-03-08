@@ -3,6 +3,10 @@
 Kleine, leesbare Bash-snippets die het leven makkelijker maken. 
 Geen cryptische one-liners, maar begrijpelijke tools voor normale mensen.
 
+Small, readable Bash snippets for normal people.
+
+The README is in Dutch, but the code speaks for itsef ;°)
+
 > Vervang teksten in strings OF bestanden met één simpel commando.
 > `cat bestand.txt | REPLACE zoekwoord vervanging`
 
