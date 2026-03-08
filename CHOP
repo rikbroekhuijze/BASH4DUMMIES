@@ -1,157 +1,138 @@
 #!/bin/bash
 
-VERSION="0.3"
+VERSION="0.5"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
-    
-    echo
-    echo "Usage: $MYBASENAME \$x[ \$y[ z]]"
-    echo
-    
-    echo "Returns a string defined in \$x where on both sides <CR>, <NL>, <TAB> and <SPACE> have been removed. If other characters need to be chopped then these can be specified in the optional \$y. The optional parameter z defines where the chopping must take place: 0 means on both sides, 1 means chop at the left and 2 means chop at the right."
+    cat << EOF
 
-    echo
-    echo "Options:"
-    echo "  -h, --help        Show this help message"
-    echo "  -v, --version     Show version information"
-    echo 
-    echo "Examples:"
-    echo "  $MYBASENAME \" one two three four \""
-    echo "  echo \" one two three four \" | $MYBASENAME"
-    echo "  echo \"'one two three four'\" | $MYBASENAME \"'or\"" 
-    echo   
-    
+Usage: $MYBASENAME <text> [characters] [position]
+
+Removes specified characters from the left, right, or both sides of a text string.
+By default, whitespace characters are removed (space, tab, newline, carriage return).
+
+Parameters:
+  text        - The string to be chopped
+  characters  - Optional: which characters to remove (default: whitespace)
+  position    - Optional: 0=both sides (default), 1=left only, 2=right only
+
+Examples:
+  $MYBASENAME "   hello world   "
+  $MYBASENAME "'hello world'" "'"
+  echo "   test   " | $MYBASENAME
+  $MYBASENAME "---hello---" "-" 2          # remove only from the right
+  $MYBASENAME "   hello   " "" 2           # remove default whitespace, right side only
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
 }
+
+# Stel default karakters in (whitespace)
+DEFAULT_CHARS=$' \t\n\r'
 
 # Verwerk de argumenten
 args=()
 
-if [ -t 0 ]; then
-  # No stdin input, use haystack from command line
-  true
-else
-  # Read args from stdin
-  read -r var
-  if [ ! -z "$var" ] ; then
-    args+=("$var")
-  fi
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    # Lees alle regels van stdin
+    stdin_content=""
+    while IFS= read -r line; do
+        if [ -z "$stdin_content" ]; then
+            stdin_content="$line"
+        else
+            stdin_content="$stdin_content"$'\n'"$line"
+        fi
+    done
+    args+=("$stdin_content")
 fi
 
 for arg in "$@"; do
-
-  case "$arg" in
-  
-    -h|--help)
-       show_usage
-       exit 0
-       ;;
-    
-    -v|--version)
-       echo "$VERSION"
-       exit 0
-       ;;
-     
-    *)
-       # Continue with normal operation
-       args+=("$arg")
-       ;;
-     
-  esac
- 
+    case "$arg" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "$VERSION"
+            exit 0
+            ;;
+        *)
+            args+=("$arg")
+            ;;
+    esac
 done
 
-if [ "${#args[@]}" -lt "1" ] ; then
-  echo >&2
-  echo "ERROR! Could not bake any bread from this." >&2
-  show_usage
-  exit 123
+# Controleer aantal argumenten
+if [ "${#args[@]}" -lt 1 ]; then
+    echo >&2
+    echo "FOUT! Geef minstens een tekst om te chopen." >&2
+    show_usage
+    exit 123
 fi
 
-if [ "${#args[@]}" -gt "3" ] ; then
-  echo >&2
-  echo "ERROR! Could not bake any bread from this." >&2
-  show_usage
-  exit 123
+if [ "${#args[@]}" -gt 3 ]; then
+    echo >&2
+    echo "FOUT! Te veel argumenten." >&2
+    show_usage
+    exit 123
 fi
 
 x="${args[0]}"
-y="${args[1]}"
-z="${args[2]}"
+y="${args[1]:-$DEFAULT_CHARS}"  # Als y leeg is, gebruik default whitespace
+z="${args[2]:-0}"                # Als z leeg is, gebruik 0
 
-if [ -z $y ] ; then
-  y=" "
-fi
-
-# if ! [[ $z =~ ^[0-9]+$ ]]; then
-if ! [ -z "$z" ] ; then
-  for ((abc=0; abc<3; abc++)); do
-    toggle=0
-    if [ "$z" = "$abc" ] ; then
-      toggle=1
-      break
-    fi
-  done
-  if ! [ "$toggle" = "1" ] ; then
-    echo "ERROR! z must be an integer between 0 and 2." >&2
+# Valideer z
+if ! [[ "$z" =~ ^[012]$ ]]; then
+    echo "FOUT! positie moet 0, 1 of 2 zijn." >&2
     show_usage
     exit 123
-  fi
-else
-  z="0"
 fi
 
-# Trim van de voorkant
-if [ "$z" = "0" ] || [ "$z" = "1" ] ; then
- 
-  while [ "0" = "0" ] ; do 
+# CHOP functie
+chop() {
+    local string="$1"
+    local chars="$2"
+    local mode="$3"
     
-    toggle="0"
-    for ((abc=0; abc<${#y}; abc++)); do
-     
-      char="${y:$abc:1}"
-      
-      if [ "${x:0:1}" = "$char" ] ; then
-        toggle="1"
-        x="${x#${char}}"
-      fi
-      
-    done
-    
-    if  [ "$toggle" = "0" ] ; then 
-      break
+    # Chop links (mode 0 of 1)
+    if [ "$mode" = "0" ] || [ "$mode" = "1" ]; then
+        while true; do
+            # Als string leeg is, stoppen
+            [ -z "$string" ] && break
+            
+            # Check of eerste karakter in chars zit
+            first_char="${string:0:1}"
+            if [[ "$chars" == *"$first_char"* ]]; then
+                string="${string:1}"
+            else
+                break
+            fi
+        done
     fi
     
-  done
-  
-fi
+    # Chop rechts (mode 0 of 2)
+    if [ "$mode" = "0" ] || [ "$mode" = "2" ]; then
+        while true; do
+            # Als string leeg is, stoppen
+            [ -z "$string" ] && break
+            
+            # Check of laatste karakter in chars zit
+            last_char="${string: -1}"
+            if [[ "$chars" == *"$last_char"* ]]; then
+                string="${string%?}"
+            else
+                break
+            fi
+        done
+    fi
+    
+    echo -n "$string"
+}
 
-echo  
-# Trim van de achterkant
-if [ "$z" = "0" ] || [ "$z" = "2" ] ; then
-  
-  while [ "0" = "0" ] ; do 
-    
-    toggle="0"
-    
-    for ((abc=0; abc<${#y}; abc++)); do
-      
-      char="${y:$abc:1}"
-      
-      if [ "${x:${#x}-1:1}" = "$char" ] ; then
-        
-        toggle="1"
-        x="${x%${char}}"
-        
-      fi
-      
-    done
-    
-    if  [ "$toggle" = "0" ] ; then 
-      break
-    fi
-  done
-  
-fi
- 
-echo $x
+# Voer CHOP uit
+chop "$x" "$y" "$z"
+echo  # Extra newline
