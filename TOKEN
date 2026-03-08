@@ -1,0 +1,131 @@
+#!/bin/bash
+
+VERSION="0.7"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <text> <n> [<delimiter>]
+
+Extracts the n-th token from a text string.
+Tokens are separated by delimiter (default: space).
+
+Parameters:
+  text        - The string to extract from (can be passed via pipe)
+  n           - Token number to extract (starts at 1)
+  delimiter   - Optional: character(s) that separate tokens (default: space)
+
+Examples:
+  $MYBASENAME "one two three four five" 3
+  echo "one,two,three,four,five" | $MYBASENAME 3 ','
+  $MYBASENAME "one--two--three" 2 "--"
+  
+  # Extract third line from multi-line text
+  echo "line one
+line two
+line three
+line four" | $MYBASENAME 3 $'\n'
+  
+  # Same but with quoted newline
+  echo "line one
+line two
+line three
+line four" | $MYBASENAME 3 '
+'
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+TOKEN() {
+    local haystack="$1"
+    local n="$2"
+    local delimiter="$3"
+    
+    # Als delimiter niet is meegegeven, gebruik spatie
+    if [ -z "$delimiter" ]; then
+        delimiter=" "
+    fi
+    
+    # Validatie: n moet een positief getal zijn
+    if [[ ! "$n" =~ ^[0-9]+$ ]] || [[ "$n" -lt 1 ]]; then
+        echo "ERROR: n must be a positive integer" >&2
+        return 1
+    fi
+    
+    # Split de string op delimiter
+    local tokens=()
+    
+    if [ "$delimiter" = $'\n' ]; then
+        # Split op newline met mapfile (werkt ook voor lege regels)
+        mapfile -t tokens <<< "$haystack"
+        
+        # Als de haystack eindigt met een newline, heeft mapfile een lege token aan het eind
+        # Dat willen we niet voor token counting
+        if [ "${#tokens[@]}" -gt 0 ] && [ -z "${tokens[${#tokens[@]}-1]}" ] && [[ "$haystack" == *$'\n' ]]; then
+            # Haal de laatste lege token weg
+            unset 'tokens[${#tokens[@]}-1]'
+        fi
+    else
+        # Andere delimiters met IFS
+        IFS="$delimiter" read -ra tokens <<< "$haystack"
+    fi
+    
+    # Check of token bestaat
+    if [[ "$n" -gt "${#tokens[@]}" ]]; then
+        return 1  # Stil falen zoals bij 'cut'
+    fi
+    
+    # Return het gevraagde token
+    echo "${tokens[n-1]}"
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    # Lees ALLE stdin (behoudt newlines)
+    stdin_content=$(cat)
+    if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    fi
+fi
+
+# Voeg command line argumenten toe
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "$VERSION"
+            exit 0
+            ;;
+        *)
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need at least text and token number" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 3 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+# Roep TOKEN aan
+TOKEN "${args[@]}"
+exit $?
