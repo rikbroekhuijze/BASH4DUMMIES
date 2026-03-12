@@ -1,0 +1,103 @@
+#!/bin/bash
+
+VERSION="0.1"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <text> <n>
+
+Returns the first n characters from the left side of a text string.
+If n is negative, returns all but the last n characters.
+
+Parameters:
+  text        - The string to extract from (can be passed via pipe)
+  n           - Number of characters to extract:
+                 positive: take first n characters
+                 negative: remove last n characters
+                 zero: returns empty string
+
+Examples:
+  $MYBASENAME "Hello world" 5          # -> Hello
+  $MYBASENAME "Hello world" -5         # -> Hello (removes last 5)
+  echo "Hello world" | $MYBASENAME 5
+  $MYBASENAME "Hello" 10               # -> Hello (whole string if n > length)
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+LEFT() {
+    local string="$1"
+    local n="$2"
+    
+    # Validatie: n moet een getal zijn
+    if [[ ! "$n" =~ ^-?[0-9]+$ ]]; then
+        echo "ERROR: n must be an integer" >&2
+        return 1
+    fi
+    
+    local result=""
+    
+    if [ "$n" -ge 0 ]; then
+        # Positief: eerste n karakters
+        result="${string:0:$n}"
+    else
+        # Negatief: verwijder laatste |n| karakters
+        local remove=$(( -n ))
+        result="${string:0:${#string}-remove}"
+    fi
+    
+    # Alleen output als resultaat niet leeg is
+    if [ -n "$result" ]; then
+        echo "$result"
+    fi
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    stdin_content=$(cat)
+    if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    fi
+fi
+
+# Verwerk argumenten
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "$VERSION"
+            exit 0
+            ;;
+        *)
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need at least text and n" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 2 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+LEFT "${args[@]}"
+exit $?
