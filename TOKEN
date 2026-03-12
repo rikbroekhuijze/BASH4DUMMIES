@@ -1,15 +1,7 @@
 #!/bin/bash
 
-VERSION="0.9"
+VERSION="0.10"
 MYBASENAME=$(basename "$0")
-
-check_version() {
-  # Check bash versie (mapfile bestaat sinds bash 4.0)
-  if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
-    echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
-    echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
-  fi
-}
 
 show_usage() {
     cat << EOF
@@ -21,27 +13,25 @@ Tokens are separated by delimiter (default: space).
 
 Parameters:
   text        - The string to extract from (can be passed via pipe)
-  n           - Token number to extract (starts at 1)
+  n           - Token number to extract:
+                 positive: count from the start (1 = first token)
+                 negative: count from the end (-1 = last token)
+                 0 is invalid
   delimiter   - Optional: character(s) that separate tokens (default: space)
 
 Examples:
-  $MYBASENAME "one two three four five" 3
-  echo "one,two,three,four,five" | $MYBASENAME 3 ','
-  $MYBASENAME "one--two--three" 2 "--"     # Multi-char delimiter
-  $MYBASENAME "--test--" 1 "--"            # Delimiter that looks like an option
+  $MYBASENAME "one two three four five" 3       # -> three
+  $MYBASENAME "one two three four five" -1      # -> five (last token)
+  $MYBASENAME "one two three four five" -2      # -> four (second last)
+  echo "one,two,three,four,five" | $MYBASENAME -2 ','
+  $MYBASENAME "one--two--three" 2 "--"          # Multi-char delimiter
+  $MYBASENAME "--test--" 1 "--"                  # Delimiter that looks like an option
   
   # Extract third line from multi-line text
   echo "line one
 line two
 line three
-line four" | $MYBASENAME 3 $'\n'
-  
-  # Same but with quoted newline
-  echo "line one
-line two
-line three
-line four" | $MYBASENAME 3 '
-'
+line four" | $MYBASENAME -2 $'\n'               # -> line three
 
 Options:
   -h, --help     Show this help message
@@ -60,9 +50,9 @@ TOKEN() {
         delimiter=" "
     fi
     
-    # Validatie: n moet een positief getal zijn
-    if [[ ! "$n" =~ ^[0-9]+$ ]] || [[ "$n" -lt 1 ]]; then
-        echo "ERROR: n must be a positive integer" >&2
+    # Validatie: n moet een getal zijn en mag niet 0 zijn
+    if [[ ! "$n" =~ ^-?[0-9]+$ ]] || [ "$n" -eq 0 ]; then
+        echo "ERROR: n must be a non-zero integer" >&2
         return 1
     fi
     
@@ -84,23 +74,27 @@ TOKEN() {
         IFS="$unique_delim" read -ra tokens <<< "$processed"
     fi
     
+    # Bereken de effectieve index
+    local index
+    if [ "$n" -gt 0 ]; then
+        index=$((n - 1))
+    else
+        index=$((${#tokens[@]} + n))
+    fi
+    
     # Check of token bestaat
-    if [[ "$n" -gt "${#tokens[@]}" ]]; then
+    if [ "$index" -lt 0 ] || [ "$index" -ge "${#tokens[@]}" ]; then
         return 1
     fi
     
     # Alleen echoën als token niet leeg is
-    if [ -n "${tokens[n-1]}" ]; then
-        echo "${tokens[n-1]}"
+    if [ -n "${tokens[index]}" ]; then
+        echo "${tokens[index]}"
     fi
-    # Als token leeg is: helemaal niets doen (geen output)
 }
-
-check_version
 
 # MAIN 
 args=()
-found_double_dash=0
 
 # Check voor pipe input
 if [ ! -t 0 ]; then
@@ -128,8 +122,9 @@ for arg in "$@"; do
                 # Als we al 2 args hebben, is dit waarschijnlijk de delimiter
                 args+=("$arg")
             else
-                # Anders is het een echte --
-                found_double_dash=1
+                # Anders is het een echte -- (maar die gebruiken we niet)
+                # We negeren het gewoon
+                :
             fi
             ;;
         *)
@@ -150,6 +145,12 @@ if [ "${#args[@]}" -gt 3 ]; then
     show_usage
     exit 1
 fi
+
+# Debug: toon args (uitcommentarieer voor testen)
+# echo "args: ${#args[@]}" >&2
+# for i in "${!args[@]}"; do
+#     echo "  $i: '${args[i]}'" >&2
+# done
 
 # Roep TOKEN aan
 TOKEN "${args[@]}"
