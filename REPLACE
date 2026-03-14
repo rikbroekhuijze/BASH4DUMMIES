@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-VERSION="1.9"
+VERSION="2.0"
 MYBASENAME=$(basename "$0")
 SCRIPT_NAME="$MYBASENAME"
 
@@ -104,8 +104,9 @@ args=()
 
 # Check voor pipe input
 if [ ! -t 0 ]; then
-    # Lees ALLE stdin, behoud newlines
-    stdin_content=$(cat)
+    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
+    stdin_content=$(cat; echo bla)
+    stdin_content="${stdin_content::-4}"
     if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
     fi
