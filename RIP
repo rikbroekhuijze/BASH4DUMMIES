@@ -1,0 +1,137 @@
+#!/bin/bash
+
+VERSION="0.3"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <text> <start> <length>
+
+Removes a substring starting at position with given length.
+Returns everything EXCEPT that substring.
+Negative values count from the end.
+
+Parameters:
+  text        - The string to modify (can be passed via pipe)
+  start       - Start position (1 = first, -1 = last)
+  length      - Number of characters to remove:
+                 positive = remove characters to the right
+                 negative = remove characters to the left
+
+Examples:
+  $MYBASENAME "blablabla" 2 3        # -> blabla (remove "lab" from pos 2)
+  $MYBASENAME "blablabla" -2 -3      # -> labla (remove "abl" from pos -2 to left)
+  $MYBASENAME "Hello world" 4 5      # -> Helrld (remove "lo wo")
+  $MYBASENAME "Hello world" -5 3     # -> Hello rld (remove "wor")
+  $MYBASENAME "Hello world" 3 -2     # -> Helloworld (remove "ll")
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+RIP() {
+    local string="$1"
+    local start="$2"
+    local length="$3"
+    local len=${#string}
+    local result=""
+    
+    # Validatie
+    if [[ ! "$start" =~ ^-?[0-9]+$ ]] || [[ ! "$length" =~ ^-?[0-9]+$ ]]; then
+        echo "ERROR: start and length must be integers" >&2
+        return 1
+    fi
+    
+    # Converteer start naar 0-based index
+    if [ "$start" -gt 0 ]; then
+        start=$((start - 1))
+    elif [ "$start" -lt 0 ]; then
+        start=$((len + start))
+    else
+        # start == 0 is invalid (1-based counting starts at 1)
+        return 1
+    fi
+    
+    # Check of start binnen bereik is
+    if [ "$start" -lt 0 ] || [ "$start" -ge "$len" ]; then
+        echo "$string"  # Buiten bereik, niets te verwijderen
+        return
+    fi
+    
+    # Bereken te verwijderen segment
+    local remove_start="$start"
+    local remove_end
+    
+    if [ "$length" -gt 0 ]; then
+        # Positieve lengte: verwijder naar rechts
+        remove_end=$((start + length))
+    elif [ "$length" -lt 0 ]; then
+        # Negatieve lengte: verwijder naar links
+        remove_start=$((start + length + 1))
+        remove_end=$((start + 1))
+    else
+        # length == 0: niets verwijderen
+        echo "$string"
+        return
+    fi
+    
+    # Zorg dat remove_start en remove_end binnen bereik blijven
+    [ "$remove_start" -lt 0 ] && remove_start=0
+    [ "$remove_end" -gt "$len" ] && remove_end=$len
+    
+    # Bouw resultaat: deel VOOR remove_start + deel NA remove_end
+    if [ "$remove_start" -gt 0 ]; then
+        result+="${string:0:$remove_start}"
+    fi
+    
+    if [ "$remove_end" -lt "$len" ]; then
+        result+="${string:$remove_end}"
+    fi
+    
+    # Alleen output als resultaat niet leeg is
+    if [ -n "$result" ]; then
+        echo "$result"
+    fi
+}
+
+# MAIN (zelfde als MID/CHAR/etc)
+args=()
+
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
+    stdin_content=$(cat; echo bla)
+    stdin_content="${stdin_content::-4}"
+    if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    fi
+fi
+
+# Verwerk argumenten
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) show_usage; exit 0 ;;
+        -v|--version) echo "$VERSION"; exit 0 ;;
+        *) args+=("$arg") ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 3 ]; then
+    echo "ERROR: Need text, start position, and length" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 3 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+RIP "${args[@]}"
+exit $?
