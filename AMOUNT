@@ -1,0 +1,109 @@
+#!/bin/bash
+
+VERSION="0.2"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <text> <needle> [<delimiter>]
+
+Counts how many times a substring or word occurs in text.
+
+Parameters:
+  text        - The string to search in (can be passed via pipe)
+  needle      - What to count
+  delimiter   - Optional: if given, splits text into fields/words first
+
+Examples:
+  $MYBASENAME "bla bla bla" "bla"           # -> 3 (all occurrences)
+  $MYBASENAME "bla bla bla" "bla" " "       # -> 3 (all three words are "bla")
+  $MYBASENAME "blabla bla bla" "bla"        # -> 4 (also counts "bla" inside "blabla")
+  $MYBASENAME "blabla bla bla" "bla" " "    # -> 2 (only whole words)
+  echo "a,b,c,a,b,c" | $MYBASENAME "a" ','  # -> 2 (only whole fields)
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+AMOUNT() {
+    
+    local haystack="$1"
+    local needle="$2"
+    local delimiter="${3:-}"
+    local count=0
+    
+    if [ -z "$delimiter" ]; then
+        # Tel ALLE voorkomens van substring
+        local temp="$haystack"
+        while [[ "$temp" == *"$needle"* ]]; do
+            ((count++))
+            temp="${temp#*"$needle"}"
+        done
+    else
+        # Split op delimiter en tel alleen hele velden
+        local fields=()
+        
+        if [ "$delimiter" = $'\n' ]; then
+            # Voor newline: gebruik mapfile (behoudt lege regels)
+            mapfile -t fields <<< "$haystack"
+            # Als de laatste regel leeg is door trailing newline, verwijder die
+            if [ "${#fields[@]}" -gt 0 ] && [ -z "${fields[${#fields[@]}-1]}" ] && [[ "$haystack" == *$'\n' ]]; then
+                unset 'fields[${#fields[@]}-1]'
+            fi
+        else
+            # Voor andere delimiters: gebruik IFS
+            IFS="$delimiter" read -ra fields <<< "$haystack"
+        fi
+        
+        # Tel hoe vaak needle voorkomt als heel veld
+        for field in "${fields[@]}"; do
+            if [ "$field" = "$needle" ]; then
+                ((count++))
+            fi
+        done
+    fi
+    
+    echo "$count"
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
+    stdin_content=$(cat; echo bla)
+    stdin_content="${stdin_content::-4}"
+    if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    fi
+fi
+
+# Verwerk argumenten
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) show_usage; exit 0 ;;
+        -v|--version) echo "$VERSION"; exit 0 ;;
+        *) args+=("$arg") ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need at least text and needle" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 3 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+AMOUNT "${args[@]}"
+exit $?
