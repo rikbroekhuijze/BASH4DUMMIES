@@ -1,0 +1,112 @@
+#!/bin/bash
+
+VERSION="0.7"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME [<string>] [<delimiter>]
+
+Returns the ASCII/Unicode values of all characters.
+If no string argument is given, reads from stdin.
+
+Parameters:
+  string      - Optional: string to convert (reads from stdin if omitted)
+  delimiter   - Optional: character(s) to place between values (default: newline)
+
+Examples:
+  $MYBASENAME "abc"              # -> 97\n98\n99 (newline separated)
+  $MYBASENAME "abc" ' '          # -> 97 98 99 (space separated)
+  $MYBASENAME "abc" ','          # -> 97,98,99 (comma separated)
+  echo "Hello" | $MYBASENAME ' ' # -> 72 101 108 108 111
+  $MYBASENAME $'a\nb'            # -> 97\n10\n98
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+ASC() {
+    local input="$1"
+    local delimiter="${2:-$' '}"
+    local char=""
+    local i
+    local first=1
+    
+    # Loop door alle karakters
+    for ((i=0; i<${#input}; i++)); do
+        char="${input:$i:1}"
+        if [ $first -eq 1 ]; then
+            printf "%d" "'$char"
+            first=0
+        else
+            printf "%s%d" "$delimiter" "'$char"
+        fi
+    done
+    
+    # Alleen een newline aan het einde als er output was
+    if [ $first -eq 0 ]; then
+        echo
+    fi
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
+    stdin_content=$(cat; echo bla)
+    stdin_content="${stdin_content::-4}"
+    if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    fi
+fi
+
+# Voeg command line argumenten toe
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "$VERSION"
+            exit 0
+            ;;
+        *)
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -gt 2 ]; then
+    echo >&2
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+# Debug: toon args (uitcommentarieer voor testen)
+# echo "args: ${#args[@]}" >&2
+# for i in "${!args[@]}"; do
+#     echo "  $i: '${args[i]}'" >&2
+# done
+
+# Roep ASC aan
+if [ "${#args[@]}" -eq 2 ]; then
+    ASC "${args[0]}" "${args[1]}"
+elif [ "${#args[@]}" -eq 1 ]; then
+    ASC "${args[0]}"  # gebruik default delimiter
+else
+    # Geen args en geen pipe? Dan error
+    echo >&2
+    echo "No input given." >&2
+    show_usage
+    exit 1
+fi
+exit $?
