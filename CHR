@@ -1,0 +1,97 @@
+#!/bin/bash
+
+VERSION="0.2.3"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <number> [<number> ...]
+
+Returns the ASCII character(s) for given value(s).
+If no arguments are given, reads numbers from stdin (space-separated or one per line).
+
+Parameters:
+  number      - ASCII value(s) to convert (0-255)
+
+Examples:
+  $MYBASENAME 97              # -> a
+  $MYBASENAME 10              # -> (newline)
+  $MYBASENAME 65 66 67        # -> ABC
+  echo "72 101 108" | $MYBASENAME  # -> Hel
+  ASC "ABC" | $MYBASENAME      # -> ABC (roundtrip!)
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+CHR() {
+    local values=()
+    local result=""
+    local num
+    
+    # Als er argumenten zijn, gebruik die
+    if [ $# -gt 0 ]; then
+        values=("$@")
+    else
+        # Lees van stdin en splits op whitespace
+        read -r line
+        if [ -n "$line" ]; then
+            IFS=' ' read -ra values <<< "$line"
+        fi
+    fi
+    
+    for num in "${values[@]}"; do
+        # Validatie: moet een getal zijn tussen 0-255
+        if [[ ! "$num" =~ ^[0-9]+$ ]] || [ "$num" -lt 0 ] || [ "$num" -gt 255 ]; then
+            echo "ERROR: '$num' is not a valid ASCII value (0-255)" >&2
+            return 1
+        fi
+        
+        # Converteer nummer naar karakter
+        printf -v char "\\x$(printf "%x" "$num")"
+        result+="$char"
+    done
+    
+    # Output het resultaat
+    printf "%s" "$result"
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if [ ! -t 0 ]; then
+    # Voor CHR: we lezen later van stdin in de functie
+    # Dus hier niets toevoegen aan args
+    :
+fi
+
+# Verwerk argumenten
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -v|--version)
+            echo "$VERSION"
+            exit 0
+            ;;
+        *)
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Roep CHR aan
+if [ ${#args[@]} -gt 0 ]; then
+    CHR "${args[@]}"
+else
+    CHR  # leest van stdin
+fi
+echo  # Voor een nette prompt
+exit $?
