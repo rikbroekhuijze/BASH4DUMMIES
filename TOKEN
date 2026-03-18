@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.11"
+VERSION="0.13"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -60,20 +60,7 @@ TOKEN() {
     # Split de string op delimiter
     local tokens=()
     
-    if [ "$delimiter" = $'\n' ]; then
-        # Split op newline met mapfile
-        mapfile -t tokens <<< "$haystack"
-        
-        # Als de haystack eindigt met een newline, verwijder lege token
-        if [ "${#tokens[@]}" -gt 0 ] && [ -z "${tokens[${#tokens[@]}-1]}" ] && [[ "$haystack" == *$'\n' ]]; then
-            unset 'tokens[${#tokens[@]}-1]'
-        fi
-    else
-        # Vervang delimiter door een uniek controleteken
-        local unique_delim=$'\001'
-        local processed=$(echo "$haystack" | sed "s|$delimiter|$unique_delim|g")
-        IFS="$unique_delim" read -ra tokens <<< "$processed"
-    fi
+    mapfile -d "$delimiter"  -t tokens <<< "$haystack"
     
     # Bereken de effectieve index
     local index
@@ -92,6 +79,7 @@ TOKEN() {
     if [ -n "${tokens[index]}" ]; then
         echo "${tokens[index]}"
     fi
+    
 }
 
 # MAIN 
@@ -139,12 +127,13 @@ if [ "${#args[@]}" -gt 3 ]; then
     exit 1
 fi
 
-# Debug: toon args (uitcommentarieer voor testen)
+ # Debug: toon args (uitcommentarieer voor testen)
 # echo "args: ${#args[@]}" >&2
-# for i in "${!args[@]}"; do
-#     echo "  $i: '${args[i]}'" >&2
-# done
+ #for i in "${!args[@]}"; do
+ #    echo "  $i: '${args[i]}'" >&2
+ #done
 
 # Roep TOKEN aan
+
 TOKEN "${args[@]}"
 exit $?
