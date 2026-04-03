@@ -1,26 +1,29 @@
 #!/bin/bash
 
-VERSION="0.2"
+VERSION="0.20"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
     cat << EOF
 
-Usage: $MYBASENAME <text> <needle> [<delimiter>]
+Usage: $MYBASENAME <haystack> <needle> [<delimiter>]
 
-Counts how many times a substring or word occurs in text.
+Counts how many times a <needle> or word occurs in <haystack>.
 
 Parameters:
   text        - The string to search in (can be passed via pipe)
   needle      - What to count
-  delimiter   - Optional: if given, splits text into fields/words first
+  delimiter   - Optional: if given, splits <haystack> into fields/words first
 
 Examples:
   $MYBASENAME "bla bla bla" "bla"           # -> 3 (all occurrences)
   $MYBASENAME "bla bla bla" "bla" " "       # -> 3 (all three words are "bla")
-  $MYBASENAME "blabla bla bla" "bla"        # -> 4 (also counts "bla" inside "blabla")
+  $MYBASENAME "blabla bla bla" "bla"        # -> 4 (all occurrences)
   $MYBASENAME "blabla bla bla" "bla" " "    # -> 2 (only whole words)
+  echo "a,b,c,a,b,c" | $MYBASENAME "a"      # -> 2 (all occurrences)
   echo "a,b,c,a,b,c" | $MYBASENAME "a" ','  # -> 2 (only whole fields)
+  echo "a,b,c,aa,b,c" | $MYBASENAME "a"     # -> 3 (all occurrences)
+  echo "a,b,c,aa,b,c" | $MYBASENAME "a" ',' # -> 1 (only whole fields)
 
 Options:
   -h, --help     Show this help message
@@ -44,21 +47,20 @@ AMOUNT() {
             temp="${temp#*"$needle"}"
         done
     else
-        # Split op delimiter en tel alleen hele velden
-        local fields=()
+      
+        mapfile -d "$delimiter" -t fields <<< "$haystack""bla"
         
-        if [ "$delimiter" = $'\n' ]; then
-            # Voor newline: gebruik mapfile (behoudt lege regels)
-            mapfile -t fields <<< "$haystack"
-            # Als de laatste regel leeg is door trailing newline, verwijder die
-            if [ "${#fields[@]}" -gt 0 ] && [ -z "${fields[${#fields[@]}-1]}" ] && [[ "$haystack" == *$'\n' ]]; then
-                unset 'fields[${#fields[@]}-1]'
-            fi
-        else
-            # Voor andere delimiters: gebruik IFS
-            IFS="$delimiter" read -ra fields <<< "$haystack"
+        # Na het splitten, 
+        if [ "${#fields[@]}" -gt 0 ]; then
+          last=${#fields[@]}-1
+          if [ "${fields[$last]: -3}" = "bla" ]; then
+            fields[$last]="${fields[$last]%???}"  # Verwijder laatste 3 karakters
+          else
+            fields[$last]="${fields[$last]%????}"  # Verwijder laatste 4 karakters
+          fi
         fi
         
+        counter="0"
         # Tel hoe vaak needle voorkomt als heel veld
         for field in "${fields[@]}"; do
             if [ "$field" = "$needle" ]; then
@@ -75,26 +77,101 @@ args=()
 
 # Check voor pipe input
 if [ ! -t 0 ]; then
-    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
     stdin_content=$(cat; echo bla)
-    stdin_content="${stdin_content::-4}"
-    if [ -n "$stdin_content" ]; then
+    if [[ "${stdin_content=}" -gt "3" ]] ;then
+      stdin_content="${stdin_content::-4}"
+      if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
+      fi
     fi
 fi
 
-# Verwerk argumenten
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
 for arg in "$@"; do
     case "$arg" in
-        -h|--help) show_usage; exit 0 ;;
-        -v|--version) echo "$VERSION"; exit 0 ;;
-        *) args+=("$arg") ;;
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
     esac
 done
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
-    echo "ERROR: Need at least text and needle" >&2
+    echo "ERROR: Need at least haystack and needle" >&2
     show_usage
     exit 1
 fi
