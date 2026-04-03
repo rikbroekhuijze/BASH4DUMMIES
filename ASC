@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.7"
+VERSION="0.20"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -13,14 +13,13 @@ If no string argument is given, reads from stdin.
 
 Parameters:
   string      - Optional: string to convert (reads from stdin if omitted)
-  delimiter   - Optional: character(s) to place between values (default: newline)
+  delimiter   - Optional: character(s) to place between values (default: space)
 
 Examples:
-  $MYBASENAME "abc"              # -> 97\n98\n99 (newline separated)
-  $MYBASENAME "abc" ' '          # -> 97 98 99 (space separated)
+  $MYBASENAME "abc"              # -> 97 98 99 (space separated)
   $MYBASENAME "abc" ','          # -> 97,98,99 (comma separated)
   echo "Hello" | $MYBASENAME ' ' # -> 72 101 108 108 111
-  $MYBASENAME $'a\nb'            # -> 97\n10\n98
+  $MYBASENAME $'a\nb'            # -> 97 10 98
 
 Options:
   -h, --help     Show this help message
@@ -58,26 +57,93 @@ args=()
 
 # Check voor pipe input
 if [ ! -t 0 ]; then
-    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
     stdin_content=$(cat; echo bla)
-    stdin_content="${stdin_content::-4}"
-    if [ -n "$stdin_content" ]; then
+    if [ "${#stdin_content}" -gt "3" ] ;then
+      stdin_content="${stdin_content::-4}"
+      if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
+      fi
     fi
 fi
 
-# Voeg command line argumenten toe
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
 for arg in "$@"; do
     case "$arg" in
+        
         -h|--help)
-            show_usage
-            exit 0
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
             ;;
+        
         -v|--version)
-            echo "$VERSION"
-            exit 0
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
             ;;
-        *)
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
             args+=("$arg")
             ;;
     esac
@@ -91,6 +157,13 @@ if [ "${#args[@]}" -gt 2 ]; then
     exit 1
 fi
 
+if [ "${#args[@]}" -lt 1 ]; then
+    echo >&2
+    echo "ERROR: Too few arguments" >&2
+    show_usage
+    exit 1
+fi
+
 # Debug: toon args (uitcommentarieer voor testen)
 # echo "args: ${#args[@]}" >&2
 # for i in "${!args[@]}"; do
@@ -98,15 +171,18 @@ fi
 # done
 
 # Roep ASC aan
-if [ "${#args[@]}" -eq 2 ]; then
-    ASC "${args[0]}" "${args[1]}"
-elif [ "${#args[@]}" -eq 1 ]; then
-    ASC "${args[0]}"  # gebruik default delimiter
-else
-    # Geen args en geen pipe? Dan error
-    echo >&2
-    echo "No input given." >&2
-    show_usage
-    exit 1
-fi
+# if [ "${#args[@]}" -eq 2 ]; then
+#     ASC "${args[0]}" "${args[1]}"
+# elif [ "${#args[@]}" -eq 1 ]; then
+#     ASC "${args[0]}"  # gebruik default delimiter
+# else
+#     # Geen args en geen pipe? Dan error
+#     echo >&2
+#     echo "No input given." >&2
+#     show_usage
+#     exit 1
+# fi
+# exit $?
+
+ASC "${args[@]}"
 exit $?
