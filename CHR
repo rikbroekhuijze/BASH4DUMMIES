@@ -48,7 +48,7 @@ CHR() {
         # Validatie: moet een getal zijn tussen 0-255
         if [[ ! "$num" =~ ^[0-9]+$ ]] || [ "$num" -lt 0 ] || [ "$num" -gt 255 ]; then
             echo "ERROR: '$num' is not a valid ASCII value (0-255)" >&2
-            return 1
+            return 123
         fi
         
         # Converteer nummer naar karakter
@@ -157,13 +157,5 @@ for arg in "$@"; do
     esac
 done
 
-# Roep CHR aan
-if [ -n "$STDIN_CONTENT" ] || [ ${#args[@]} -gt 0 ]; then
-    CHR "${args[@]}"
-    echo  # Newline voor de prompt
-else
-    echo "ERROR: Need at least one number" >&2
-    show_usage
-    exit 1
-fi
+CHR "${args[@]}"
 exit $?
