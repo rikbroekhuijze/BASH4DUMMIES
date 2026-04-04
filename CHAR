@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20"
+VERSION="0.20.2"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -18,10 +18,10 @@ Parameters:
 Examples:
   $MYBASENAME "hello" 2           # -> e
   $MYBASENAME "hello" -1          # -> o
-  $MYBASENAME "hello" 2 4         # -> e l l  (or "ell"?)
-  $MYBASENAME "hello" 2 -1        # -> e l l o (2 to last)
-  $MYBASENAME "hello" -3 -1       # -> l l o (last three)
-
+  $MYBASENAME "hello" 2 4         # -> ell
+  $MYBASENAME "hello" 2 -1        # -> ello (2 to last)
+  $MYBASENAME "hello" -3 -1       # -> llo (last three)
+  
 Options:
   -h, --help     Show this help message
   -v, --version  Show version information
@@ -30,11 +30,11 @@ EOF
 }
 
 CHAR() {
+    
     local string="$1"
     local start="$2"
     local end="${3:-$2}"
     local len=${#string}
-    
     
    #   echo "DEBUG: len=$len" >&2
    #   echo "DEBUG: string als bytes:" >&2
@@ -46,7 +46,7 @@ CHAR() {
     # Validatie
     if [[ ! "$start" =~ ^-?[0-9]+$ ]] || [[ ! "$end" =~ ^-?[0-9]+$ ]]; then
         echo "ERROR: Positions must be integers" >&2
-        return 1
+        return 123
     fi
     
     # Converteer naar 0-based indices
@@ -82,27 +82,9 @@ CHAR() {
     # Alleen output als resultaat niet leeg is
     if [ -n "$result" ]; then
         # Gebruik printf om extra newline te voorkomen
-        printf "%s" "$result"
+       #  printf "%s" "$result"
+       echo "$result"
     fi
-    
-    
-    
-    # Extract karakters
-  #   local result=""
- #    for ((i=start; i<=end; i++)); do
-  #       result+="${string:$i:1}"
-  #   done
-    
-  #   echo "DEBUG: result='$result'" >&2
-  #   echo "DEBUG: result lengte=${#result}" >&2
-    
-    # Alleen output als resultaat niet leeg is
-    if [ -n "$result" ]; then
-        printf "%s" "$result"
-    else
-        echo "DEBUG: result is leeg!" >&2
-    fi
-    
     
 }
 
@@ -206,21 +188,15 @@ done
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
     echo "ERROR: Need at least text and start position" >&2
-    show_usage
-    exit 1
+    # show_usage
+    exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo "ERROR: Too many arguments" >&2
-    show_usage
-    exit 1
+    # show_usage
+    exit 123
 fi
 
 CHAR "${args[@]}"
-
-# Alleen een newline als er output was
-if [ $? -eq 0 ] && [ -n "$(CHAR "${args[@]}")" ]; then
-    echo
-fi
-
 exit $?
