@@ -1,7 +1,12 @@
 #!/bin/bash
 
-VERSION="0.3"
+VERSION="0.20"
 MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
 
 show_usage() {
     cat << EOF
@@ -91,22 +96,97 @@ MID() {
 args=()
 
 # Check voor pipe input
-if [ ! -t 0 ]; then
-    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
-    stdin_content=$(cat; echo bla)
-    stdin_content="${stdin_content::-4}"
-    if [ -n "$stdin_content" ]; then
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
+      fi
     fi
 fi
 
-
 # Verwerk argumenten
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
 for arg in "$@"; do
     case "$arg" in
-        -h|--help) show_usage; exit 0 ;;
-        -v|--version) echo "$VERSION"; exit 0 ;;
-        *) args+=("$arg") ;;
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
     esac
 done
 
