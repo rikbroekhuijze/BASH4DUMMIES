@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20"
+VERSION="0.20.3"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -43,7 +43,7 @@ DEFAULT_CHARS=$' \t\n\r'
 chop() {
     
     local string="$1"
-    local chop_characters="$2"
+    local chop_characters="${2:-$DEFAULT_CHARS}"
     local mode="${3:-0}"
     local line
     
@@ -113,7 +113,10 @@ chop() {
       done
     fi
     
-    echo $string2
+    # Alleen als er output was
+    if [ ! -z "$string2" ] ; then
+      echo "$string2"
+    fi
     
 }
 
@@ -219,14 +222,14 @@ done
 if [ "${#args[@]}" -lt 1 ]; then
     echo >&2
     echo "ERROR! Need at least text to chop." >&2
-    show_usage
+    # show_usage
     exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo >&2
     echo "ERROR! Too many arguments." >&2
-    show_usage
+    # show_usage
     exit 123
 fi
 
@@ -239,10 +242,5 @@ if [ ! -z "$debug" ] ; then
   done
 fi
 
-# DIRECTE OUTPUT - chop schrijft zelf naar stdout
-# chop "$x" "$y" "$z"
-
 chop "${args[@]}"
-
-# Geen extra newline - chop heeft al de juiste newlines toegevoegd
 exit $?
