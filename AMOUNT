@@ -1,29 +1,37 @@
 #!/bin/bash
 
-VERSION="0.20.4"
+VERSION="0.20.7"
 MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
 
 show_usage() {
     cat << EOF
 
-Usage: $MYBASENAME <text> <needle> [<delimiter>]
+Usage: $MYBASENAME <text> [<delimiter>]
 
-Counts how many times a <needle> or <word> occurs in <text>.
+Returns the amount of tokens in a <text> split by <delimiter>.
 
 Parameters:
   text        - The string to search in (can be passed via pipe)
-  needle      - What to count
-  delimiter   - Optional: if given, splits <text> into fields/words first
+  delimiter   - can consist of multiple characters, defaults to space.
 
 Examples:
-  $MYBASENAME "bla bla bla" "bla"           # -> 3 (all occurrences)
-  $MYBASENAME "bla bla bla" "bla" " "       # -> 3 (all three words are "bla")
-  $MYBASENAME "blabla bla bla" "bla"        # -> 4 (all occurrences)
-  $MYBASENAME "blabla bla bla" "bla" " "    # -> 2 (only whole words)
-  echo "a,b,c,a,b,c" | $MYBASENAME "a"      # -> 2 (all occurrences)
-  echo "a,b,c,a,b,c" | $MYBASENAME "a" ','  # -> 2 (only whole fields)
-  echo "a,b,c,aa,b,c" | $MYBASENAME "a"     # -> 3 (all occurrences)
-  echo "a,b,c,aa,b,c" | $MYBASENAME "a" ',' # -> 1 (only whole fields)
+  $MYBASENAME "bla bla bla"                 # -> 3 
+  $MYBASENAME "bla bla bla" "l"             # -> 4
+  $MYBASENAME "bla bla bla" "bla"           # -> 4 (not 2)
+  $MYBASENAME "bla" "bla"                   # -> 2
+  
+  echo "bla bla bla" | $MYBASENAME          # -> 3
+  
+  #count how manny lines are in a file:
+  cat file | CHOP | $MYBASENAME $'\n'
+  
+  #count how manny words are in a file:
+  cat file | CHOP | REPLACE $'\n' ' ' | COLLAPSE | $MYBASENAME 
 
 Options:
   -h, --help     Show this help message
@@ -35,48 +43,31 @@ EOF
 AMOUNT() {
     
     local haystack="$1"
-    local needle="$2"
-    local delimiter="${3:-}"
+    local delimiter="${2:- }"
     local count=0
+    local fields=()
     
-    if [ -n "$debug" ]; then
-      echo 
-      echo "haystack : $haystack"
-      echo "needle : $needle"
-      echo "delimiter : $delimiter"
-    fi  
-    
-    if [ -z "$delimiter" ]; then
-        # Tel ALLE voorkomens van substring
-        local temp="$haystack"
-        while [[ "$temp" == *"$needle"* ]]; do
-            ((count++))
-            temp="${temp#*"$needle"}"
-        done
-    else
+    mapfile -d "$delimiter" -t fields <<< "$haystack""$stopper"
       
-        mapfile -d "$delimiter" -t fields <<< "$haystack""bla"
-        
-        # Na het splitten, 
-        if [ "${#fields[@]}" -gt 0 ]; then
-          last=${#fields[@]}-1
-          if [ "${fields[$last]: -3}" = "bla" ]; then
-            fields[$last]="${fields[$last]%???}"  # Verwijder laatste 3 karakters
-          else
-            fields[$last]="${fields[$last]%????}"  # Verwijder laatste 4 karakters
-          fi
+    # Na het splitten, 
+    if [ "${#fields[@]}" -gt 0 ]; then
+        last=${#fields[@]}-1
+        if [ "${fields[$last]: -5}" = "$stopper" ]; then
+          fields[$last]="${fields[$last]%?????}"  # Verwijder laatste 5 karakters
+        else
+          fields[$last]="${fields[$last]%??????}"  # Verwijder laatste 6 karakters, incl newline
         fi
-        
-        counter="0"
-        # Tel hoe vaak needle voorkomt als heel veld
-        for field in "${fields[@]}"; do
-            if [ "$field" = "$needle" ]; then
-                ((count++))
-            fi
-        done
     fi
+   
+    # Tel hoe vaak needle voorkomt als heel veld
+    # for field in "${fields[@]}"; do
+    #     ((count++))
+    #    #  if [ -n "$debug" ] && echo "$count : $field"
+    # done
     
-    echo "$count"
+    # echo "$count"
+    
+    echo "${#fields[@]}"
     
 }
 
@@ -84,10 +75,10 @@ AMOUNT() {
 args=()
 
 # Check voor pipe input
-if [ ! -t 0 ]; then
-    stdin_content=$(cat; echo bla)
-    if [ "${#stdin_content}" -gt "3" ] ;then
-      stdin_content="${stdin_content::-4}"
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
       if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
       fi
@@ -177,9 +168,16 @@ for arg in "$@"; do
     esac
 done
 
+# Check bash versie (mapfile bestaat sinds bash 4.0)
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
+  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
+  exit 123
+fi
+
 # Valideer aantal argumenten
-if [ "${#args[@]}" -lt 2 ]; then
-    echo "ERROR: Need at least haystack and needle" >&2
+if [ "${#args[@]}" -lt 1 ]; then
+    echo "ERROR: Need at least some text." >&2
     # show_usage
     exit 123
 fi
