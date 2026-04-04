@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20"
+VERSION="0.20.1"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
