@@ -2,7 +2,7 @@
 
 # 0.16 werkt niet, 0.17 = 0.15 clean start.
 
-VERSION="0.17"
+VERSION="0.20"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -24,6 +24,8 @@ Examples:
   echo "   test   " | $MYBASENAME
   $MYBASENAME "---hello---" "-" 2          # remove only from the right
   $MYBASENAME "   hello   " "" 2           # remove default whitespace, right side only
+  $MYBASENAME "abcabcdefghighi" "abcghi"   # => def
+  
   
   # Remove only spaces, keep newlines
   $MYBASENAME "  hello 
@@ -41,96 +43,79 @@ DEFAULT_CHARS=$' \t\n\r'
 
 # CHOP functie - schrijft DIRECT naar stdout
 chop() {
+    
     local string="$1"
-    local chars="$2"
-    local mode="$3"
+    local chop_characters="$2"
+    local mode="${3:-0}"
     local line
     
-    # Bepaal of we newlines moeten behandelen als te verwijderen karakters
-    local strip_newlines=false
-    if [[ "$chars" == *$'\n'* ]] || [ "$chars" = "$DEFAULT_CHARS" ]; then
-        strip_newlines=true
+    string2="$string"
+    
+    # Valideer mode
+    if ! [[ "$mode" =~ ^[012]$ ]]; then
+      echo "ERROR! Position must be 0, 1, or 2." >&2
+      show_usage
+      exit 123
     fi
     
-    # Als we newlines moeten strippen, splitsen we in regels en behandelen elke regel apart
-    if [ "$strip_newlines" = true ] && [[ "$string" == *$'\n'* ]]; then
-        local lines=()
-        local chopped_lines=()
-        
-        # Split in regels met mapfile
-        mapfile -t lines <<< "$string"
-        
-        # Als de laatste regel leeg is en de string eindigt met newline,
-        # dan heeft mapfile een lege regel aan het eind. Die willen we niet.
-        if [ "${#lines[@]}" -gt 0 ] && [ -z "${lines[${#lines[@]}-1]}" ] && [[ "$string" == *$'\n' ]]; then
-            unset 'lines[${#lines[@]}-1]'
-        fi
-        
-        # Chop elke regel en verzamel in array
-        for line in "${lines[@]}"; do
-            chopped_lines+=("$(chop_line "$line" "$chars" "$mode")")
-        done
-        
-        # Output met newlines tussen regels
-        for ((i=0; i<${#chopped_lines[@]}; i++)); do
-            printf "%s" "${chopped_lines[i]}"
-            if [ "$i" -lt $((${#chopped_lines[@]}-1)) ]; then
-                printf "\n"
-            fi
-        done
-        
-        # Als de originele string eindigde met een newline, voeg die dan toe
-        if [[ "$string" == *$'\n' ]]; then
-            printf "\n"
-        fi
-    else
-        # Geen newline stripping: behandel hele string als één geheel
-        chop_line "$string" "$chars" "$mode"
+    # echo "debug : $debug"
+    if [ ! -z "$debug" ] ; then
+      echo
+      echo "string : $string"
+      echo -n "chop_characters in ascii : "
+      echo "$chop_characters" | ASC
+      
     fi
-}
-
-# Chop een enkele regel (of hele string als we newlines niet strippen)
-chop_line() {
-    local string="$1"
-    local chars="$2"
-    local mode="$3"
     
-    # Chop links (mode 0 of 1)
     if [ "$mode" = "0" ] || [ "$mode" = "1" ]; then
-        while true; do
-            # Als string leeg is, stoppen
-            [ -z "$string" ] && break
-            
-            # Check of eerste karakter in chars zit
-            local first_char="${string:0:1}"
-            if [[ "$chars" == *"$first_char"* ]]; then
-                string="${string:1}"
-            else
-                break
-            fi
+    
+      for (( abc=0; abc<${#string}; abc++ )); do
+      
+        char="${string:$abc:1}"
+        
+        for (( bcd=0; bcd<${#chop_characters}; bcd++ )); do
+          toggle=""
+          chop_char="${chop_characters:$bcd:1}"
+          if [ "$char" = "$chop_char" ]; then
+            string2="${string2:1}"
+            toggle="1"
+            break
+          fi
         done
+      
+        if [ -z "$toggle" ] ; then
+          break
+        fi
+      
+      done
     fi
     
-    # Chop rechts (mode 0 of 2)
+    string="$string2"
+    
     if [ "$mode" = "0" ] || [ "$mode" = "2" ]; then
-        while true; do
-            # Als string leeg is, stoppen
-            [ -z "$string" ] && break
-            
-            # Check of laatste karakter in chars zit
-            local last_char="${string: -1}"
-            if [[ "$chars" == *"$last_char"* ]]; then
-                string="${string%?}"
-            else
-                break
-            fi
+    
+      for (( abc=${#string}-1; abc>=0; abc-- )); do
+      
+        char="${string:$abc:1}"
+        
+        for (( bcd=0; bcd<${#chop_characters}; bcd++ )); do
+          toggle=""
+          chop_char="${chop_characters:$bcd:1}"
+          if [ "$char" = "$chop_char" ]; then
+            string2="${string2%?}"
+            toggle="1"
+            break
+          fi
         done
+      
+        if [ -z "$toggle" ] ; then
+          break
+        fi
+      
+      done
     fi
     
-    # Output zonder extra newline
-    # printf "%s" "$string"
-    
-    echo "$string"
+    echo $string2
     
 }
 
@@ -139,30 +124,98 @@ args=()
 
 # Check voor pipe input
 if [ ! -t 0 ]; then
-    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
     stdin_content=$(cat; echo bla)
-    stdin_content="${stdin_content::-4}"
-    if [ -n "$stdin_content" ]; then
+    if [ "${#stdin_content}" -gt "3" ] ;then
+      stdin_content="${stdin_content::-4}"
+      if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
+      fi
     fi
 fi
 
-# Verwerk argumenten
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
 for arg in "$@"; do
     case "$arg" in
+        
         -h|--help)
-            show_usage
-            exit 0
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
             ;;
+        
         -v|--version)
-            echo "$VERSION"
-            exit 0
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
             ;;
-        *)
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
             args+=("$arg")
             ;;
     esac
 done
+
 
 # Controleer aantal argumenten
 if [ "${#args[@]}" -lt 1 ]; then
@@ -179,19 +232,19 @@ if [ "${#args[@]}" -gt 3 ]; then
     exit 123
 fi
 
-x="${args[0]}"
-y="${args[1]:-$DEFAULT_CHARS}"  # Als y leeg is, gebruik default whitespace
-z="${args[2]:-0}"                # Als z leeg is, gebruik 0
-
-# Valideer z
-if ! [[ "$z" =~ ^[012]$ ]]; then
-    echo "ERROR! Position must be 0, 1, or 2." >&2
-    show_usage
-    exit 123
+# Debug: toon args (uitcommentarieer voor testen)
+if [ ! -z "$debug" ] ; then
+  echo
+  echo "args: ${#args[@]}" >&2
+  for i in "${!args[@]}"; do
+     echo "  $i : =>${args[i]}<=" >&2
+  done
 fi
 
 # DIRECTE OUTPUT - chop schrijft zelf naar stdout
-chop "$x" "$y" "$z"
+# chop "$x" "$y" "$z"
+
+chop "${args[@]}"
 
 # Geen extra newline - chop heeft al de juiste newlines toegevoegd
 exit $?
