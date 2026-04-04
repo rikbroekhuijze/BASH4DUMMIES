@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# 0.16 werkt niet, 0.17 = 0.15 clean start.
-
 VERSION="0.20"
 MYBASENAME=$(basename "$0")
 
