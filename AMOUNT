@@ -1,19 +1,19 @@
 #!/bin/bash
 
-VERSION="0.20.1"
+VERSION="0.20.2"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
     cat << EOF
 
-Usage: $MYBASENAME <haystack> <needle> [<delimiter>]
+Usage: $MYBASENAME <text> <needle> [<delimiter>]
 
-Counts how many times a <needle> or word occurs in <haystack>.
+Counts how many times a <needle> or <word> occurs in <text>.
 
 Parameters:
   text        - The string to search in (can be passed via pipe)
   needle      - What to count
-  delimiter   - Optional: if given, splits <haystack> into fields/words first
+  delimiter   - Optional: if given, splits <text> into fields/words first
 
 Examples:
   $MYBASENAME "bla bla bla" "bla"           # -> 3 (all occurrences)
