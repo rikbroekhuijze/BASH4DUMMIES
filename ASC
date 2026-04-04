@@ -153,36 +153,16 @@ done
 if [ "${#args[@]}" -gt 2 ]; then
     echo >&2
     echo "ERROR: Too many arguments" >&2
-    show_usage
-    exit 1
+    # show_usage
+    exit 123
 fi
 
 if [ "${#args[@]}" -lt 1 ]; then
     echo >&2
     echo "ERROR: Too few arguments" >&2
-    show_usage
-    exit 1
+    # show_usage
+    exit 123
 fi
-
-# Debug: toon args (uitcommentarieer voor testen)
-# echo "args: ${#args[@]}" >&2
-# for i in "${!args[@]}"; do
-#     echo "  $i: '${args[i]}'" >&2
-# done
-
-# Roep ASC aan
-# if [ "${#args[@]}" -eq 2 ]; then
-#     ASC "${args[0]}" "${args[1]}"
-# elif [ "${#args[@]}" -eq 1 ]; then
-#     ASC "${args[0]}"  # gebruik default delimiter
-# else
-#     # Geen args en geen pipe? Dan error
-#     echo >&2
-#     echo "No input given." >&2
-#     show_usage
-#     exit 1
-# fi
-# exit $?
 
 ASC "${args[@]}"
 exit $?
