@@ -1,0 +1,188 @@
+#!/bin/bash
+
+VERSION="0.20.2"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <string> [<delimiter>]
+
+Collapses multiple consecutive delimiters into a single delimiter.
+Default delimiter is space.
+
+Parameters:
+  string      - The string to collapse (can be passed via pipe)
+  delimiter   - Optional: character(s) that separate tokens (default: space)
+
+Examples:
+  $MYBASENAME "one    two   three"              # -> one two three
+  $MYBASENAME "one,,,two,,,three" ','           # -> one,two,three
+  $MYBASENAME "one  two  three  "               # -> one two three (no trailing)
+  echo "one    two   three" | $MYBASENAME       # -> one two three
+  $MYBASENAME $'one\n\n\ntwo\n\nthree' $'\n'    # -> one\ntwo\nthree
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+COLLAPSE() {
+    
+    local string="$1"
+    local delimiter="${2:- }"
+    local result=""
+    local tokens=()
+    
+    if [ -z "$string" ]; then
+        return 0
+    fi
+ 
+    for (( abc=${#string}-1; abc>=1; abc-- )); do
+      
+      char1="${string:$abc:1}"
+      
+      if [ "$char1" = "$delimiter" ] ; then
+        
+        bcd=$(( abc-1 ))
+        char2="${string:$bcd:1}" 
+      
+        if [ "$char1" = "$char2" ] ; then
+        
+          # verwijder positie abc
+          voor="${string:0:$abc}"          # deel voor de positie
+          na="${string:$abc+1}"            # deel na de positie
+          string="${voor}${na}"
+          
+        fi
+        
+      fi
+      
+    done
+    
+    # Alleen als er output was
+    if [ ! -z "$string" ] ; then
+      echo "$string"
+    fi
+    
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 1 ]; then
+    echo "ERROR: Need at least a string" >&2
+    # show_usage
+    exit 123
+fi
+
+if [ "${#args[@]}" -gt 2 ]; then
+    echo "ERROR: Too many arguments" >&2
+    # show_usage
+    exit 123
+fi
+
+COLLAPSE "${args[@]}"
+exit $?
