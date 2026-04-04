@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.4"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -38,6 +38,13 @@ AMOUNT() {
     local needle="$2"
     local delimiter="${3:-}"
     local count=0
+    
+    if [ -z "$debug" ]; then
+      echo 
+      echo haystackhaystack
+      echo needleneedle
+      echo delimiterdelimiter
+      
     
     if [ -z "$delimiter" ]; then
         # Tel ALLE voorkomens van substring
@@ -172,14 +179,14 @@ done
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
     echo "ERROR: Need at least haystack and needle" >&2
-    show_usage
-    exit 1
+    # show_usage
+    exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo "ERROR: Too many arguments" >&2
-    show_usage
-    exit 1
+    # show_usage
+    exit 123
 fi
 
 AMOUNT "${args[@]}"
