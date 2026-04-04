@@ -1,6 +1,8 @@
 #!/bin/bash
 
-VERSION="0.15.1"
+# 0.16 werkt niet, 0.17 = 0.15 clean start.
+
+VERSION="0.17"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -189,8 +191,7 @@ if ! [[ "$z" =~ ^[012]$ ]]; then
 fi
 
 # DIRECTE OUTPUT - chop schrijft zelf naar stdout
-# chop "$x" "$y" "$z"
-chop "${args[@]}"
+chop "$x" "$y" "$z"
 
 # Geen extra newline - chop heeft al de juiste newlines toegevoegd
 exit $?
