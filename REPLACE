@@ -1,16 +1,15 @@
 #!/bin/env bash
 
-VERSION="2.0"
+VERSION="0.20"
 MYBASENAME=$(basename "$0")
 SCRIPT_NAME="$MYBASENAME"
 
-check_version() {
-  # Check bash versie (mapfile bestaat sinds bash 4.0)
-  if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
-    echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
-    echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
-  fi
-}
+# Check bash versie (mapfile bestaat sinds bash 4.0)
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
+  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
+  exit 123
+fi
 
 show_usage() {
     cat << EOF
@@ -44,57 +43,30 @@ Options:
   -h, --help        Show this help message
 EOF
 
-  check_version
-  echo
-  
 }
 
 REPLACE() {
+    
     local haystack="$1"
     local needle="$2"
     local replacement="${3:-}"
     local result=""
-    local line
     
     # Als needle leeg is, geef dan haystack terug
     if [ -z "$needle" ]; then
-        if [ -n "$haystack" ]; then
-            echo "$haystack"
-        fi
-        return
+      if [ -n "$haystack" ]; then
+        echo "$haystack"
+      fi
+      return 0
     fi
     
-    # Als needle GEEN newline bevat, kunnen we simpel vervangen per regel
-    if [[ "$needle" != *$'\n'* ]]; then
-        # Split haystack in regels met mapfile
-        local lines=()
-        mapfile -t lines <<< "$haystack"
-        
-        # Vervang in elke regel
-        for line in "${lines[@]}"; do
-            if [ -n "$result" ]; then
-                result+=$'\n'
-            fi
-            result+="${line//$needle/$replacement}"
-        done
-        
-        # Alleen output als resultaat niet leeg is
-        if [ -n "$result" ]; then
-            echo "$result"
-        fi
-        return
-    fi
-    
-    # Als needle WEL een newline bevat, wordt het lastiger...
-    # Dan moeten we de hele haystack als één string behandelen
-    # We gebruiken bash's pattern replacement op de hele string
-    # Dit werkt, maar is langzamer bij grote bestanden
     result="${haystack//$needle/$replacement}"
     
     # Alleen output als resultaat niet leeg is
     if [ -n "$result" ]; then
         echo "$result"
     fi
+    
 }
 
 check_version
@@ -104,26 +76,93 @@ args=()
 
 # Check voor pipe input
 if [ ! -t 0 ]; then
-    # Lees ALLE stdin met de nieuwe methode (behoudt newlines!)
     stdin_content=$(cat; echo bla)
-    stdin_content="${stdin_content::-4}"
-    if [ -n "$stdin_content" ]; then
+    if [ "${#stdin_content}" -gt "3" ] ;then
+      stdin_content="${stdin_content::-4}"
+      if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
+      fi
     fi
 fi
 
-# Verwerk argumenten
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
 for arg in "$@"; do
     case "$arg" in
+        
         -h|--help)
-            show_usage
-            exit 0
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
             ;;
+        
         -v|--version)
-            echo "$VERSION"
-            exit 0
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
             ;;
-        *)
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
             args+=("$arg")
             ;;
     esac
@@ -133,14 +172,14 @@ done
 if [ "${#args[@]}" -lt 2 ]; then
     echo >&2
     echo "ERROR! Need at least haystack and needle" >&2
-    echo "Try $SCRIPT_NAME --help" >&2
+    # echo "Try $SCRIPT_NAME --help" >&2
     exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo >&2
     echo "ERROR! Too many arguments" >&2
-    echo "Try $SCRIPT_NAME --help" >&2
+    # echo "Try $SCRIPT_NAME --help" >&2
     exit 123
 fi
 
