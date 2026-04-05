@@ -1,0 +1,192 @@
+#!/bin/bash
+
+VERSION="0.20.1"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <text> [<delimiter>]
+
+Returns length of string (characters) or number of tokens.
+
+Parameters:
+  text        - The string to measure (can be passed via pipe)
+  delimiter   - Optional: if given, returns number of tokens
+
+Examples:
+  $MYBASENAME "Hello world"              # -> 11
+  $MYBASENAME "one two three" " "        # -> 3
+  echo "a,b,c" | $MYBASENAME ","         # -> 3
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+LEN() {
+    
+    local text="$1"
+    local delimiter="$2"
+    
+    if [ -z "$text" ]; then
+        return 0
+    fi
+    
+    if [ -z "$delimiter" ]; then
+    
+        # CHARACTER MODE
+        echo "${#text}"
+    else
+    
+        # TOKEN MODE
+        local tokens=()
+        mapfile -d "$delimiter" -O 1 -t tokens <<< "$text""$stopper"
+        
+        if [ "${#tokens[@]}" -gt 0 ]; then
+            last=${#tokens[@]}
+            if [ "${tokens[$last]: -5}" = "$stopper" ]; then
+                tokens[$last]="${tokens[$last]%?????}"
+            else
+                tokens[$last]="${tokens[$last]%??????}"
+            fi
+        fi
+        
+        # Tel niet-lege tokens
+        local count=0
+        for ((i=1; i<=${#tokens[@]}; i++)); do
+            [ -n "${tokens[$i]}" ] && ((count++))
+        done
+        echo "$count"
+    fi
+    
+}
+
+# MAIN
+
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Check bash versie (mapfile bestaat sinds bash 4.0)
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
+  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
+  exit 123
+fi
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 1 ]; then
+    echo "ERROR: Need text" >&2
+    # show_usage
+    exit 123
+fi
+
+if [ "${#args[@]}" -gt 2 ]; then
+    echo "ERROR: Too many arguments" >&2
+    # show_usage
+    exit 123
+fi
+
+LEN "${args[@]}"
+exit $?
+
