@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-VERSION="0.20.1"
+VERSION="0.20.2"
 MYBASENAME=$(basename "$0")
 SCRIPT_NAME="$MYBASENAME"
 
@@ -66,8 +66,6 @@ REPLACE() {
     fi
     
 }
-
-check_version
 
 # MAIN 
 args=()
