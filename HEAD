@@ -1,0 +1,261 @@
+#!/bin/bash
+
+VERSION="0.20"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <text> <n> [<delimiter>]
+
+Returns the first n tokens from a text string.
+If n is negative, returns all but the last n tokens.
+
+Parameters:
+  text        - The string to extract from (can be passed via pipe)
+  n           - Number of tokens to take:
+                 positive: take first n tokens
+                 negative: remove last n tokens
+  delimiter   - Optional: character(s) that separate tokens (default: space)
+
+Examples:
+  $MYBASENAME "een twee drie vier" 2         # -> een twee (default space)
+  $MYBASENAME "een twee drie vier" -2        # -> een twee (remove last 2)
+  $MYBASENAME "a,b,c,d,e" 3 ','              # -> a,b,c
+  $MYBASENAME "a,b,c,d,e" -2 ','             # -> a,b,c
+  echo "one two three" | $MYBASENAME 2       # -> one two
+  
+  # Extract tokens from multi-line text
+  echo "one two three
+four five six
+seven eight nine
+ten"  | $MYBASENAME -3 $'\n'                 # -> one two three
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+HEAD() {
+    
+    local haystack="$1"
+    local n="$2"
+    local delimiter="${3:- }"
+    local result=""
+    
+    if [[ "$haystack" = "" ]]; then
+      return 0
+    fi
+    
+    if  [[ "$debug" = "1" ]]; then
+      echo
+      echo "haystack : " 
+      echo "=>$haystack<=" 
+      echo
+      echo "n : $n"  
+      echo 
+      echo "delimiter : =>$delimiter<=" 
+      echo
+    fi
+    
+    # Validatie: n moet een getal zijn
+    if [[ ! "$n" =~ ^-?[0-9]+$ ]]; then
+        echo "ERROR: n must be an integer" >&2
+        return 1
+    fi
+    
+    if [[ "$n" -eq 0 ]]; then
+      return 0
+    fi
+    
+    # Split de string op delimiter
+    local tokens=()
+    
+    mapfile -d "$delimiter" -O 1 -t tokens <<< "$haystack""$stopper"
+    
+    last=${#tokens[@]}
+    
+    # Na het splitten, 
+    if [ "${#tokens[@]}" -gt 0 ]; then
+
+      if [ "${tokens[$last]: -5}" = "$stopper" ]; then
+        tokens[$last]="${tokens[$last]%?????}"  # Verwijder laatste 5 karakters
+      else
+        tokens[$last]="${tokens[$last]%??????}"  # Verwijder laatste 6 karakters
+      fi
+    fi
+    
+    if  [[ "$debug" = "1" ]]; then
+      echo
+      for abc in "${!tokens[@]}"; do
+        echo "token[$abc] : =>${tokens[abc]}<="
+      done
+    fi
+    
+    local stopnumber
+    
+    # Bereken start stop
+
+    if [ "$n" -gt 0 ]; then
+        stopnumber=$n
+    else
+        stopnumber=$((last + n))
+    fi
+    
+    abc=1
+    string=""
+    while [ $abc -le "$stopnumber" ]; do
+      
+      if [[ "$string" = "" ]];then
+        string=${tokens[abc]}
+      else
+        string="${string}${delimiter}${tokens[abc]}"
+      fi
+      
+      if  [[ "$debug" = "1" ]]; then
+        echo
+        echo "string : $string"
+      fi
+        
+      ((abc++))
+      
+    done
+    
+    if  [[ "$debug" = "1" ]]; then
+      echo
+    fi
+    
+    if [[ ! -z "$string" ]]; then
+      echo "$string"
+    fi
+    
+    return 0
+    
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Check bash versie (mapfile bestaat sinds bash 4.0)
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
+  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
+  exit 123
+fi
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need at least text and n" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 3 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+HEAD "${args[@]}"
+exit $?
