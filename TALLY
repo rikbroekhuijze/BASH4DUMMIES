@@ -1,0 +1,183 @@
+#!/bin/bash
+
+VERSION="0.20.1"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <haystack> <needle> [<position>]
+
+Counts how many times <needle> occurs in <haystack>,
+optionally starting at <position>.
+
+Parameters:
+  text        - The string to search in (can be passed via pipe)
+  needle      - What to count
+  position    - from where to count, negative is couting from the end
+  
+Examples:
+  $MYBASENAME "bla bla bla" "bla"           # -> 3 
+  $MYBASENAME "blabla bla bla" "bla"        # -> 4 
+  echo "a,b,c,a,b,c" | $MYBASENAME "a"      # -> 2 
+  echo "a,b,c,aa,b,c" | $MYBASENAME "a"     # -> 3 
+  echo "aaa" | $MYBASENAME "a"              # -> 2 
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+TALLY() {
+    
+    local haystack="$1"
+    local needle="$2"
+    local position="${3:-1}"
+    local count=0
+    
+    if [ "$position" -gt "0" ] ; then
+      position=$(( position-1 ))
+    else
+      if [ "$position" -lt "0" ] ; then
+        len="${#haystack}"
+        position=$(( len + position  ))
+      else
+        echo "position can not be 0."  >&2
+        return 123
+      fi
+    fi
+    
+    if [ "$position" != "0" ] ; then
+          haystack="${haystack:$position}"
+    fi
+    
+    # Tel ALLE voorkomens van substring
+    local temp="$haystack"
+    while [[ "$temp" == *"$needle"* ]]; do
+        ((count++))
+        temp="${temp#*"$needle"}"
+    done
+     
+    echo "$count"
+    
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need at least haystack and needle" >&2
+    # show_usage
+    exit 123
+fi
+
+if [ "${#args[@]}" -gt 3 ]; then
+    echo "ERROR: Too many arguments" >&2
+    # show_usage
+    exit 123
+fi
+
+TALLY "${args[@]}"
+exit $?
