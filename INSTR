@@ -1,0 +1,193 @@
+#!/bin/bash
+
+VERSION="0.20"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <haystack> <needle> [<start>]
+
+Finds the position of a substring in a string.
+Returns the position (1-based) of the first occurrence, or 0 if not found.
+
+Parameters:
+  haystack    - The string to search in (can be passed via pipe)
+  needle      - The substring to look for
+  start       - Optional: start searching from this position (1-based)
+
+Examples:
+  $MYBASENAME "Hello world" "world"              # -> 7
+  $MYBASENAME "Hello world" "lo"                 # -> 4
+  $MYBASENAME "Hello world" "xyz"                # -> 0
+  $MYBASENAME "Hello world" "o" 5                # -> 8 (start at position 5)
+  echo "Hello world" | $MYBASENAME "world"       # -> 7
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+  
+EOF
+
+}
+
+INSTR() {
+    
+    local haystack="$1"
+    local needle="$2"
+    local start="${3:-1}"
+    local pos=0
+    
+    # Validatie
+    if [ -z "$haystack" ] || [ -z "$needle" ]; then
+        echo 0
+        return 1
+    fi
+    
+    if [[ ! "$start" =~ ^[0-9]+$ ]] || [ "$start" -lt 1 ]; then
+        echo "ERROR: start position must be a positive integer" >&2
+        return 1
+    fi
+    
+    # Converteer naar 0-based voor bash substring
+    local start_0=$((start - 1))
+    
+    # Als start buiten bereik is
+    if [ "$start_0" -ge "${#haystack}" ]; then
+        echo 0
+        return 1
+    fi
+    
+    # Zoek vanaf startpositie
+    local search_section="${haystack:$start_0}"
+    local prefix="${search_section%%"$needle"*}"
+    
+    if [ "$prefix" != "$search_section" ]; then
+        # Gevonden: bereken positie
+        pos=$((start_0 + ${#prefix} + 1))
+        echo "$pos"
+        return 0
+    else
+        echo 0
+        return 1
+    fi
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+# Verwerk argumenten
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need haystack and needle" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 3 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+INSTR "${args[@]}"
+exit $?
