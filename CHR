@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.1"
+VERSION="0.20.2"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -18,11 +18,12 @@ If no arguments are given, reads numbers from stdin (space-separated).
 If both stdin and arguments are given, all numbers are combined.
 
 Examples:
-  $MYBASENAME 97                    # -> a
-  $MYBASENAME 10                    # -> (newline)
-  $MYBASENAME 65 66 67              # -> ABC
-  echo "72 101 108" | $MYBASENAME   # -> Hel
+  $MYBASENAME 97                            # -> a
+  $MYBASENAME 10                            # -> (newline)
+  $MYBASENAME 65 66 67                      # -> ABC
+  echo "98 108 97" | $MYBASENAME            # -> bla
   echo "98 108 97" | $MYBASENAME 98 108 97  # -> blabla
+  echo bla | ASC | $MYBASENAME 98 108 97    # -> blabla
 
 Options:
   -h, --help     Show this help message
@@ -32,44 +33,41 @@ EOF
 }
 
 CHR() {
-    local all_values=()
-    local result=""
+    
     local num
+    local amount_arguments
+    local amount_words
+    local abc
+    local line
+    local word
     
-    # Verzamel getallen van stdin (als die er is)
-    if [ -n "$STDIN_CONTENT" ]; then
-        # Split de stdin string op spaties
-        IFS=' ' read -ra stdin_values <<< "$STDIN_CONTENT"
-        all_values+=("${stdin_values[@]}")
-    fi
+    amount_arguments="${#args[@]}"
     
-    # Voeg command line argumenten toe
-    for arg in "$@"; do
-        all_values+=("$arg")
-    done
-    
-    # Verwerk alle getallen
-    for num in "${all_values[@]}"; do
-        # Validatie: moet een getal zijn tussen 0-255
+    for (( abc=0; abc<"$amount_arguments";abc++ )); do
+      for num in ${args["$abc"]} ; do
         if [[ ! "$num" =~ ^[0-9]+$ ]] || [ "$num" -lt 0 ] || [ "$num" -gt 255 ]; then
             echo "ERROR: '$num' is not a valid ASCII value (0-255)" >&2
-            return 123
+            exit 123
         fi
-        
         # Converteer nummer naar karakter
         printf -v char "\\x$(printf "%x" "$num")"
         result+="$char"
+      done
     done
     
-    # Output het resultaat
-    printf "%s" "$result"
+    if [ -n "$result" ] ; then
+      echo "$result"
+    fi
+    
 }
 
 # MAIN 
 args=()
 
 # Check voor pipe input
-if read -t 0 -n 0; then
+
+# geen terminal OF pijp OF file OF lees 0 chatacters van stdin met timeout 0
+if [ ! -t 0 ] || [ -p /dev/stdin ] || [ -f /dev/stdin ] || read -t 0 -n 0; then
     stdin_content=$(cat; echo "$stopper")
     if [ "${#stdin_content}" -gt "5" ] ;then
       stdin_content="${stdin_content::-6}"
