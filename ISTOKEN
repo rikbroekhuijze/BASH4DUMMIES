@@ -1,0 +1,248 @@
+#!/bin/bash
+
+VERSION="0.20"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+all=0
+endofoptions="0"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <string> <token> [<delimiter>] [<position>]
+
+Verifies if a token occurs in a delimited string, optionally starting from <position>.
+print the index of the found token
+Returns 0 (true) if found, 1 (false) if not.
+
+Parameters:
+  string      - The string to search in (can be passed via pipe)
+  token       - The token to look for
+  delimiter   - Optional: character(s) that separate tokens (default: space)
+  position    - Optional: if given, checks if token is at exact position (1-based)
+
+Examples:
+  $MYBASENAME "one two three" "two"              # -> true (0)
+  $MYBASENAME "one two three" "four"             # -> false (1)
+  $MYBASENAME "a,b,c,d" "c" ','                  # -> true
+  $MYBASENAME "a,b,c,d" "c" ',' 3                # -> true (at position 3)
+  $MYBASENAME "a,b,c,d" "c" ',' 2                # -> false (not at pos 2)
+  echo "one two three" | $MYBASENAME "two"       # -> true
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+ISTOKEN() {
+    
+    local string="$1"
+    local token="$2"
+    local delimiter="${3:- }"
+    local startposition="${4:-1}"
+    local tokens=()
+    local found="0"
+    
+    if  [[ "$debug" = "1" ]]; then
+      echo 
+      echo "string : =>$string<="
+      echo "token : =>$token<="
+      echo "delimiter : =>$delimiter<="
+      echo "startposition : =>$startposition<="
+    fi
+
+    # Validatie
+    if [ -z "$string" ] || [ -z "$token" ]; then
+      echo dag
+        return 1
+    fi
+
+    if [[ ! "$startposition" =~ ^[0-9]+$ ]]; then
+      echo "startposition must be an integer." >&2
+      exit 1
+    fi
+
+    if [[ "$startposition" = "0" ]]; then
+      all="1"
+      startposition="1"
+    fi
+
+    # Split de string op delimiter (zelfde truc als HEAD/TAIL)
+    mapfile -d "$delimiter" -O 1 -t tokens <<< "$string""$stopper"
+    
+    # Cleanup laatste token
+    if [ "${#tokens[@]}" -gt 0 ]; then
+        last=${#tokens[@]}
+        if [ "${tokens[$last]: -5}" = "$stopper" ]; then
+            tokens[$last]="${tokens[$last]%?????}"
+        else
+            tokens[$last]="${tokens[$last]%??????}"
+        fi
+    fi
+    
+    # Als positie is gegeven, check alleen die
+    # if [ -n "$position" ]; then
+    #     if [ "$position" -gt 0 ] && [ "$position" -le "${#tokens[@]}" ]; then
+    #         [ "${tokens[$position]}" = "$token" ] && return 0
+    #     fi
+    #     return 1
+    # fi
+    
+    # Anders zoek in alle tokens
+    for ((abc="$startposition"; abc<=${#tokens[@]}; abc++)); do
+    
+        if  [[ "$debug" = "1" ]]; then
+          echo
+          echo "testing : ${tokens[$abc]}"
+        fi
+       
+        if [ "${tokens[$abc]}" = "$token" ]; then
+          if [[ "$found" = "0" ]] ; then
+            echo -n "$abc"
+          else
+            echo -n " $abc"
+          fi
+          if [[ "$all" = "0" ]] ; then
+            return 0
+          fi
+          found="1"
+        fi
+    done
+    
+    if [[ "$found" = "0" ]] ; then
+      return 1
+    else
+      echo
+      return 0
+    fi
+    
+}
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+# Verwerk argumenten
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Check bash versie (mapfile bestaat sinds bash 4.0)
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
+  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
+  exit 123
+fi
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "ERROR: Need at least string and token" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 4 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+# Roep ISTOKEN aan
+ISTOKEN "${args[@]}"
+exit $?
