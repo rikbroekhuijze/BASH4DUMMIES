@@ -1,0 +1,250 @@
+#!/bin/bash
+
+VERSION="0.20"
+MYBASENAME=$(basename "$0")
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+
+Usage: $MYBASENAME <source> <string> <position> [<delimiter>]
+
+Inserts text at specified position.
+Without delimiter: operates on characters (position is character index)
+With delimiter: operates on tokens (position is token index)
+
+Parameters:
+  source      - The original string (can be passed via pipe)
+  position    - Where to insert:
+                 positive: insert before this position (1 = before first)
+                 negative: count from the end (-1 = after last)
+                 
+  string      - The text to insert
+  delimiter   - Optional: if given, operate on tokens instead of characters
+
+Examples:
+  $MYBASENAME "Hello world" "beautiful " 7          # -> Hello beautiful world
+  $MYBASENAME "Hello world" "beautiful "  -6        # -> Hello beautiful world
+  $MYBASENAME "one two three" "INSERT" 2 " "        # -> one INSERT two three
+  $MYBASENAME "one two three" "INSERT" -2 " "       # -> one INSERT two three
+  $MYBASENAME "a,b,c" "X" 2 ','                     # -> a,X,b,c
+  echo "Hello world" | $MYBASENAME "beautiful "  6 
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version information
+
+EOF
+}
+
+INSERT() {
+    
+    local source="$1"
+    local insert_string="$2"
+    local position="$3"
+    local delimiter="$4"
+    local result=""
+    
+    if [ -z "$source" ]; then
+        echo "$insert_string"
+        return 0
+    fi
+    
+    # Validatie: positie moet een getal zijn
+    if [[ ! "$position" =~ ^-?[0-9]+$ ]]; then
+        echo "ERROR: position must be an integer" >&2
+        return 1
+    fi
+    
+    if [ -z "$delimiter" ]; then
+        # CHARACTER MODE
+        local len=${#source}
+        
+        # Converteer negatieve positie
+        if [ "$position" -lt 0 ]; then
+            position=$((len + position + 1))  # -1 wordt laatste karakter
+        else
+          position=$((position - 1)) 
+        fi
+        
+        # Zorg dat positie binnen bereik blijft
+        [ "$position" -lt 0 ] && position=0
+        [ "$position" -gt "$len" ] && position=$len
+        
+        # Bouw resultaat
+        result="${source:0:$position}${insert_string}${source:$position}"
+        
+    else
+        # TOKEN MODE
+        local fields=()
+        
+        # Split op delimiter
+        # mapfile -d "$delimiter" -O 1 -t tokens <<< "$source""bla"
+       
+        mapfile -d "$delimiter" -O 1 -t fields <<< "$haystack""$stopper"
+      
+        # Na het splitten, 
+        if [ "${#fields[@]}" -gt 0 ]; then
+            last=${#fields[@]}
+            if [ "${fields[$last]: -5}" = "$stopper" ]; then
+              fields[$last]="${fields[$last]%?????}"  # Verwijder laatste 5 karakters
+            else
+              fields[$last]="${fields[$last]%??????}"  # Verwijder laatste 6 karakters, incl newline
+            fi
+        fi
+        
+        # Converteer negatieve positie (voor fields)
+        local token_count=${#fields[@]}
+        if [ "$position" -lt 0 ]; then
+            position=$((token_count + position + 1))  # -1 = na laatste token
+        fi
+        
+        # Zorg dat positie binnen bereik blijft
+        [ "$position" -lt 1 ] && position=1
+        [ "$position" -gt "$token_count" ] && position=$token_count
+        
+        # Bouw resultaat met fields
+        for ((i=1; i<=token_count; i++)); do
+            if [ "$i" -eq "$position" ]; then
+                result+="$insert_string$delimiter"
+            fi
+            result+="${fields[$i]}"
+            if [ "$i" -lt "$token_count" ]; then
+                result+="$delimiter"
+            fi
+        done
+        
+        # Als positie na laatste token is (alleen bij position > token_count)
+        if [ "$position" -gt "$token_count" ]; then
+            result="$source$delimiter$insert_string"
+        fi
+    fi
+    
+    printf "%s" "$result"
+}
+
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0 -n 0; then
+    stdin_content=$(cat; echo "$stopper")
+    if [ "${#stdin_content}" -gt "5" ] ;then
+      stdin_content="${stdin_content::-6}"
+      if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+      fi
+    fi
+fi
+
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions" = "0" ]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+# Check bash versie (mapfile bestaat sinds bash 4.0)
+if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
+  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
+  exit 123
+fi
+
+# Valideer aantal argumenten
+if [ "${#args[@]}" -lt 3 ]; then
+    echo "ERROR: Need source, string and position to insert" >&2
+    show_usage
+    exit 1
+fi
+
+if [ "${#args[@]}" -gt 4 ]; then
+    echo "ERROR: Too many arguments" >&2
+    show_usage
+    exit 1
+fi
+
+INSERT "${args[@]}"
+echo  # Newline voor prompt
+exit $?
