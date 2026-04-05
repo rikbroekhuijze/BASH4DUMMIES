@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.3"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -78,7 +78,8 @@ COLLAPSE() {
 args=()
 
 # Check voor pipe input
-if read -t 0 -n 0; then
+# geen terminal OF pijp OF file OF lees 0 chatacters van stdin met timeout 0
+if [ ! -t 0 ] || [ -p /dev/stdin ] || [ -f /dev/stdin ] || read -t 0 -n 0; then
     stdin_content=$(cat; echo "$stopper")
     if [ "${#stdin_content}" -gt "5" ] ;then
       stdin_content="${stdin_content::-6}"
