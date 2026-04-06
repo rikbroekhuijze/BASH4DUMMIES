@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.3"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -80,15 +80,12 @@ TAIL() {
     mapfile -d "$delimiter" -O 1 -t tokens <<< "$haystack""$stopper"
     
     # Na het splitten, 
-    if [ "${#tokens[@]}" -gt 0 ]; then
-      last=${#fields[@]}
-      if [ "${tokens[$last]: -5}" = "$stopper" ]; then
-        tokens[$last]="${tokens[$last]%?????}"  
-      else
-        tokens[$last]="${tokens[$last]%??????}"  
-      fi
+    if [ "${#fields[@]}" -gt 0 ]; then
+      last="${#fields[@]}"
+      fields["$last"]="${fields[$last]%$'\n'}"
+      fields["$last"]="${fields[$last]%$stopper}"
     fi
-    
+        
     if  [[ "$debug" = "1" ]]; then
       echo
       for abc in "${!tokens[@]}"; do
