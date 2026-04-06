@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.5"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -48,7 +48,6 @@ ISTOKEN() {
     local delimiter="${3:- }"
     local startposition="${4:-1}"
     local tokens=()
-    local found="0"
     
     if  [[ "$debug" = "1" ]]; then
       echo 
@@ -60,13 +59,12 @@ ISTOKEN() {
 
     # Validatie
     if [ -z "$string" ] || [ -z "$token" ]; then
-      echo dag
         return 1
     fi
 
     if [[ ! "$startposition" =~ ^[0-9]+$ ]]; then
       echo "startposition must be an integer." >&2
-      exit 1
+      exit 123
     fi
 
     if [[ "$startposition" = "0" ]]; then
@@ -75,53 +73,25 @@ ISTOKEN() {
     fi
 
     # Split de string op delimiter (zelfde truc als HEAD/TAIL)
-    mapfile -d "$delimiter" -O 1 -t tokens <<< "$string""$stopper"
+    mapfile -d "$delimiter" -O 1 -t fields <<< "$string""$stopper"
     
-    # Cleanup laatste token
-    if [ "${#tokens[@]}" -gt 0 ]; then
-        last=${#tokens[@]}
-        if [ "${tokens[$last]: -5}" = "$stopper" ]; then
-            tokens[$last]="${tokens[$last]%?????}"
-        else
-            tokens[$last]="${tokens[$last]%??????}"
-        fi
+    # Na het splitten, 
+    if [ "${#fields[@]}" -gt 0 ]; then
+      last="${#fields[@]}"
+      fields["$last"]="${fields[$last]%$'\n'}"
+      fields["$last"]="${fields[$last]%$stopper}"
     fi
-    
-    # Als positie is gegeven, check alleen die
-    # if [ -n "$position" ]; then
-    #     if [ "$position" -gt 0 ] && [ "$position" -le "${#tokens[@]}" ]; then
-    #         [ "${tokens[$position]}" = "$token" ] && return 0
-    #     fi
-    #     return 1
-    # fi
-    
+        
     # Anders zoek in alle tokens
-    for ((abc="$startposition"; abc<=${#tokens[@]}; abc++)); do
+    for ((abc="$startposition"; abc<=${#fields[@]}; abc++)); do
     
-        if  [[ "$debug" = "1" ]]; then
-          echo
-          echo "testing : ${tokens[$abc]}"
-        fi
-       
-        if [ "${tokens[$abc]}" = "$token" ]; then
-          if [[ "$found" = "0" ]] ; then
-            echo -n "$abc"
-          else
-            echo -n " $abc"
-          fi
-          if [[ "$all" = "0" ]] ; then
-            return 0
-          fi
-          found="1"
-        fi
+      if [ "${fields[$abc]}" = "$token" ]; then
+        echo  "$abc"
+        exit 0
+      fi
     done
     
-    if [[ "$found" = "0" ]] ; then
-      return 1
-    else
-      echo
-      return 0
-    fi
+    return 1
     
 }
 
