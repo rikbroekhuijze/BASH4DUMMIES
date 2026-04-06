@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.3"
+VERSION="0.20.4"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -50,13 +50,11 @@ LEN() {
         local tokens=()
         mapfile -d "$delimiter" -O 1 -t tokens <<< "$text""$stopper"
         
-        if [ "${#tokens[@]}" -gt 0 ]; then
-            last=${#tokens[@]}
-            if [ "${tokens[$last]: -5}" = "$stopper" ]; then
-                tokens[$last]="${tokens[$last]%?????}"
-            else
-                tokens[$last]="${tokens[$last]%??????}"
-            fi
+        # Na het splitten, 
+        if [ "${#fields[@]}" -gt 0 ]; then
+            last="${#fields[@]}"
+            fields["$last"]="${fields[$last]%$'\n'}"
+            fields["$last"]="${fields[$last]%$stopper}"
         fi
         
         # Tel niet-lege tokens
