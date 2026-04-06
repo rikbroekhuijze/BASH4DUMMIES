@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.1"
+VERSION="0.20.2"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -156,16 +156,102 @@ TAIL() {
 args=()
 
 # Check voor pipe input
-# geen terminal OF pijp OF file OF lees 0 chatacters van stdin met timeout 0
-if [ ! -t 0 ] || [ -p /dev/stdin ] || [ -f /dev/stdin ] || read -t 0 -n 0; then
-    stdin_content=$(cat; echo "$stopper")
-    if [ "${#stdin_content}" -gt "5" ] ;then
-      stdin_content="${stdin_content::-6}"
-      if [ -n "$stdin_content" ]; then
+# Vervang de hele check door dit blok
+if read -t 0.01 -r -n 1 eerste_karakter; then
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af.
+    rest=$(cat; echo "$stopper")
+    stdin_content="${eerste_karakter}${rest}"
+    # Verwijder marker + eventuele newline
+    stdin_content="${stdin_content%$stopper}"
+    stdin_content="${stdin_content%$'\n'}"
+    # we willen "" ook vangen.
+    # if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
-      fi
-    fi
+    # fi
 fi
+
+debug=""
+verbose=""
+dryrun=""
+silent=""
+endofoptions=""
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              debug="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -s|--silent)
+            if [ -z "$endofoptions"]; then
+              silent="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1"  
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+        -*)
+            if [ -z "$endofoptions" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 123
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
 
 # Verwerk argumenten
 debug=""
