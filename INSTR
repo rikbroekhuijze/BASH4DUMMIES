@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.3"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -25,7 +25,8 @@ Examples:
   $MYBASENAME "Hello world" "world"              # -> 7
   $MYBASENAME "Hello world" "lo"                 # -> 4
   $MYBASENAME "Hello world" "xyz"                # -> 0
-  $MYBASENAME "Hello world" "o" 5                # -> 8 (start at position 5)
+  $MYBASENAME "Hello world" "o" 5                # -> 5 (start at position 5)
+  $MYBASENAME "Hello world" "o" 6                # -> 8 (start at position 6)
   echo "Hello world" | $MYBASENAME "world"       # -> 7
 
 Options:
