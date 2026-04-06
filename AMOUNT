@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.9"
+VERSION="0.20.10"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -51,14 +51,11 @@ AMOUNT() {
     
     # Na het splitten, 
     if [ "${#fields[@]}" -gt 0 ]; then
-        last=${#fields[@]}-1
-        if [ "${fields[$last]: -5}" = "$stopper" ]; then
-          fields[$last]="${fields[$last]%?????}"  # Verwijder laatste 5 karakters
-        else
-          fields[$last]="${fields[$last]%??????}"  # Verwijder laatste 6 karakters, incl newline
-        fi
+      last="${#fields[@]}"
+      fields["$last"]="${fields[$last]%$'\n'}"
+      fields["$last"]="${fields[$last]%$stopper}"
     fi
-   
+     
     # Tel hoe vaak needle voorkomt als heel veld
     # for field in "${fields[@]}"; do
     #     ((count++))
