@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.6"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -26,11 +26,10 @@ Parameters:
 
 Examples:
   $MYBASENAME "one two three four five" 3       # -> three
-  $MYBASENAME "one two three four five" -1      # -> five (last token)
-  $MYBASENAME "one two three four five" -2      # -> four (second last)
-  echo "one,two,three,four,five" | $MYBASENAME -2 ','
-  $MYBASENAME "one--two--three" 2 "--"          # Multi-char delimiter
-  $MYBASENAME "--test--" 1 "--"                  # Delimiter that looks like an option
+  $MYBASENAME "one two three four five" -2      # -> four (second last token)
+  $MYBASENAME "one,two,three,four,five" -2 ","  # -> four (delimiter is ',')
+  echo "one,two,three,four,five" | $MYBASENAME -2 ','  # -> four
+  $MYBASENAME "--test--" 2 -- "--"              # endofoptions as deliliter
   
   # Extract third line from multi-line text
   echo "line one
@@ -41,8 +40,69 @@ line four" | $MYBASENAME -2 $'\n'               # -> line three
 Options:
   -h, --help     Show this help message
   -v, --version  Show version information
-
+  --             end of options
+  
 EOF
+}
+
+MAPFILE() {
+    
+    # Gebruik:
+    # haystack="-1--test-3-"
+    # delimiter="--"
+    # MAPFILE "$haystack" "$delimiter" "fields" 
+    # for (( i=0; i<${#fields[@]}; i++ )); do
+    #     echo "$i : '${fields[$i]}'"
+    # done
+    
+    # Check of er een array naam is meegegeven
+    if [[ -z "$3" ]]; then
+        echo "MYBASENAME: ERROR in function ${0##*/}: No array name given." >&2
+        exit 123
+    fi
+    
+    local string="$1"
+    local delimiter="$2"
+    local -n output_array="$3"  # nameref naar array
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "function MAPFILE"
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "string : $string"
+    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$debug" ] && echo "output_array : $output_array"
+    
+    output_array=()
+    local current=""
+    local abc=0
+    local dlen=${#delimiter}
+    local slen=${#string}
+    local bcd=1  # start op index 1
+    
+    while [[ $abc -lt $slen ]]; do
+        # Check if we have delimiter at position i
+        if [[ "${string:$abc:$dlen}" == "$delimiter" ]]; then
+            output_array["$bcd"]="$current"
+            current=""
+            ((abc += dlen))
+            ((bcd++))
+        else
+            current+="${string:$abc:1}"
+            ((abc++))
+        fi
+    done
+
+    output_array["$bcd"]="$current"
+    ((bcd++))
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "aantal : ${#output_array[@]}" 
+    if [ -n "$debug" ] ; then
+      for (( abc=1; abc<=${#output_array[@]}; abc++ )); do
+        echo "$abc : '${output_array[$abc]}'"
+      done
+    fi
+   
 }
 
 TOKEN() {
@@ -51,10 +111,21 @@ TOKEN() {
     local n="$2"
     local delimiter="$3"
     
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "function TOKEN"
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "haystack : $haystack"
+    [ -n "$debug" ] && echo "n : $n"
+    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
+    
+    [ "$n" -eq 0 ] && exit 0
+    
     # Als delimiter niet is meegegeven, gebruik spatie
     if [ -z "$delimiter" ]; then
         delimiter=" "
     fi
+    
+    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
     
     # Validatie: n moet een getal zijn en mag niet 0 zijn
     if [[ ! "$n" =~ ^-?[0-9]+$ ]] || [ "$n" -eq 0 ]; then
@@ -62,37 +133,46 @@ TOKEN() {
         return 1
     fi
     
-    # Split de string op delimiter
-    local tokens=()
+    # Split op delimiter 
+    MAPFILE "$haystack" "$delimiter" "fields"
     
-    mapfile -d "$delimiter"  -t tokens <<< "$haystack""bla"
-    
-    # Na het splitten, 
-    if [ "${#tokens[@]}" -gt 0 ]; then
-      last=${#tokens[@]}-1
-      if [ "${tokens[$last]: -3}" = "bla" ]; then
-        tokens[$last]="${tokens[$last]%???}"  # Verwijder laatste 3 karakters
-      else
-        tokens[$last]="${tokens[$last]%????}"  # Verwijder laatste 4 karakters
-      fi
+    [ -n "$debug" ] && echo  
+    [ -n "$debug" ] && echo "aantal : ${#fields[@]}" 
+    if [ -n "$debug" ]; then
+      for (( abc=1;abc<="${#fields[@]}";abc++ )) ; do
+        echo "$abc : ${fields["$abc"]}"
+      done
     fi
     
+    # Na het splitten, 
+    if [ "${#fields[@]}" -gt 0 ]; then
+      last="${#fields[@]}"
+      fields["$last"]="${fields[$last]%$'\n'}"
+      fields["$last"]="${fields[$last]%$stopper}"
+    fi
+        
     # Bereken de effectieve index
     local index
     if [ "$n" -gt 0 ]; then
-        index=$((n - 1))
+        index="$n"
     else
-        index=$((${#tokens[@]} + n))
+        index=$((${#fields[@]} + n + 1))
     fi
     
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "index : $index"
+    
     # Check of token bestaat
-    if [ "$index" -lt 0 ] || [ "$index" -ge "${#tokens[@]}" ]; then
+    if [ "$index" -lt 0 ] || [ "$index" -gt "${#fields[@]}" ]; then
+    [ -n "$debug" ] && echo "token bestaat niet."
         return 1
     fi
     
     # Alleen echoën als token niet leeg is
-    if [ -n "${tokens[index]}" ]; then
-        echo "${tokens[index]}"
+    if [ -n "${fields[index]}" ]; then
+        echo "${fields[index]}"
+    else
+      [ -n "$debug" ] && echo "token is leeg."
     fi
     
 }
@@ -120,6 +200,7 @@ verbose=""
 dryrun=""
 silent=""
 endofoptions=""
+endofoptionstoggle=""
 for arg in "$@"; do
     case "$arg" in
         
@@ -172,11 +253,11 @@ for arg in "$@"; do
             fi
             ;;
         
-        
         --)
             if [ -z "$endofoptions" ]; then
               shift
-              endofoptions="1"  
+              endofoptions="1" 
+              endofoptionstoggle="1"
             else
               args+=("$arg")
             fi
@@ -198,6 +279,11 @@ for arg in "$@"; do
     esac
 done
 
+[ -n "$debug" ] && echo 
+if [ -n "$endofoptionstoggle" ]; then
+  [ -n "$debug" ] && echo "WARNING '--' end of options encountered."
+fi
+
 # Check bash versie (mapfile bestaat sinds bash 4.0)
 if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
   echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
@@ -208,23 +294,26 @@ fi
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
     echo "ERROR: Need at least text and token number" >&2
-    show_usage
-    exit 1
+    #show_usage
+    exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo "ERROR: Too many arguments" >&2
-    show_usage
-    exit 1
+    #show_usage
+    exit 123
 fi
 
- # Debug: toon args (uitcommentarieer voor testen)
-# echo "args: ${#args[@]}" >&2
- #for i in "${!args[@]}"; do
- #    echo "  $i: '${args[i]}'" >&2
- #done
+# Debug: toon args
+[ -n "$debug" ] && echo 
+if [ -n "$debug" ] ; then
+  echo "args: ${#args[@]}" 
+  for abc in "${!args[@]}"; do
+     echo "  $abc: '${args[abc]}'" 
+  done
+fi
 
 # Roep TOKEN aan
-
 TOKEN "${args[@]}"
+[ -n "$debug" ] && echo 
 exit $?
