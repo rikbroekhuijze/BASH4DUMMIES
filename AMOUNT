@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.10"
+VERSION="0.20.11"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -34,36 +34,96 @@ Examples:
   cat file | CHOP | REPLACE $'\n' ' ' | COLLAPSE | $MYBASENAME 
 
 Options:
-  -h, --help     Show this help message
-  -v, --version  Show version information
-
+  -h, --help           Show this help message
+  -v, --version        Show version information
+  
+in case you want --help, --version or -- itself as an argument:
+  --                   End of options 
+          
+;°)
+  
 EOF
 }
 
+MAPFILE() {
+    
+    # Gebruik:
+    # haystack="-1--test-3-"
+    # delimiter="--"
+    # MAPFILE "$haystack" "$delimiter" "fields" 
+    # for (( i=0; i<${#fields[@]}; i++ )); do
+    #     echo "$i : '${fields[$i]}'"
+    # done
+    
+    # Check of er een array naam is meegegeven
+    if [[ -z "$3" ]]; then
+        echo "MYBASENAME: ERROR in function ${0##*/}: No array name given." >&2
+        exit 123
+    fi
+    
+    local string="$1"
+    local delimiter="$2"
+    local -n output_array="$3"  # nameref naar array
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "function MAPFILE"
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "string : $string"
+    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$debug" ] && echo "output_array : $output_array"
+    
+    output_array=()
+    local current=""
+    local abc=0
+    local dlen=${#delimiter}
+    local slen=${#string}
+    local bcd=1  # start op index 1
+    
+    while [[ $abc -lt $slen ]]; do
+        # Check if we have delimiter at position i
+        if [[ "${string:$abc:$dlen}" == "$delimiter" ]]; then
+            output_array["$bcd"]="$current"
+            current=""
+            ((abc += dlen))
+            ((bcd++))
+        else
+            current+="${string:$abc:1}"
+            ((abc++))
+        fi
+    done
+
+    output_array["$bcd"]="$current"
+    ((bcd++))
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "aantal : ${#output_array[@]}" 
+    if [ -n "$debug" ] ; then
+      for (( abc=1; abc<=${#output_array[@]}; abc++ )); do
+        echo "$abc : '${output_array[$abc]}'"
+      done
+    fi
+   
+}
+
 AMOUNT() {
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "function AMOUNT"
     
     local haystack="$1"
     local delimiter="${2:- }"
     local count=0
     local fields=()
     
-    mapfile -d "$delimiter" -t fields <<< "$haystack""$stopper"
+    [ -n "$debug" ] && echo "haystack : $haystack"
+    [ -n "$debug" ] && echo "delimiter : $delimiter"
     
-    # Na het splitten, 
-    if [ "${#fields[@]}" -gt 0 ]; then
-      last="${#fields[@]}"
-      fields["$last"]="${fields[$last]%$'\n'}"
-      fields["$last"]="${fields[$last]%$stopper}"
-    fi
-     
-    # Tel hoe vaak needle voorkomt als heel veld
-    # for field in "${fields[@]}"; do
-    #     ((count++))
-    #    #  if [ -n "$debug" ] && echo "$count : $field"
-    # done
+    #mapfile -d "$delimiter" -t fields <<< "$haystack""$stopper"
     
-    # echo "$count"
+    # Split op delimiter 
+    MAPFILE "$haystack" "$delimiter" "fields"
     
+    [ -n "$debug" ] && echo 
     echo "${#fields[@]}"
     
 }
@@ -72,9 +132,8 @@ AMOUNT() {
 args=()
 
 # Check voor pipe input
-# Vervang de hele check door dit blok
 if read -t 0.01 -r -n 1 eerste_karakter; then
-    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af.
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
     # Verwijder marker + eventuele newline
@@ -87,11 +146,9 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
 fi
 
 debug=""
-verbose=""
-dryrun=""
-silent=""
 endofoptions=""
 for arg in "$@"; do
+
     case "$arg" in
         
         -h|--help)
@@ -119,75 +176,45 @@ for arg in "$@"; do
             fi
             ;;
         
-        --verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        --dryrun)
-            if [ -z "$endofoptions" ]; then
-              dryrun="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        -s|--silent)
-            if [ -z "$endofoptions"]; then
-              silent="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        
         --)
             if [ -z "$endofoptions" ]; then
               shift
-              endofoptions="1"  
+              endofoptions="1" 
+              endofoptionstoggle="1"
             else
               args+=("$arg")
             fi
             ;;
                 
-        -*)
-            if [ -z "$endofoptions" ]; then
-              args+=("$arg")
-            else
-              echo "ERROR: Unknown option $arg" >&2
-              show_usage
-              exit 123
-            fi
-            ;;
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
           
         *) 
             args+=("$arg")
             ;;
     esac
+    
 done
-
-# Check bash versie (mapfile bestaat sinds bash 4.0)
-if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
-  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
-  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
-  exit 123
-fi
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 1 ]; then
-    echo "ERROR: Need at least some text." >&2
-    # show_usage
-    exit 123
+    echo "0"
+    exit 0
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
-    echo "ERROR: Too many arguments" >&2
+    echo "$MYBASENAME: Too many arguments" >&2
     # show_usage
     exit 123
 fi
 
 AMOUNT "${args[@]}"
+[ -n "$debug" ] && echo 
 exit $?
