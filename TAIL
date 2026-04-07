@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.3"
+VERSION="0.20.4"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -11,9 +11,9 @@ stopper="${char1}${char2}${char3}${char2}${char1}"
 show_usage() {
     cat << EOF
 
-Usage: $MYBASENAME <text> <n> [<delimiter>]
+Usage: $MYBASENAME <text> <amount> [<delimiter>]
 
-Returns the last n tokens from a text string.
+Returns the last amount of tokens from a text string.
 If n is negative, returns all but the first n tokens.
 
 Parameters:
@@ -37,82 +37,122 @@ seven eight nine
 ten"  | $MYBASENAME -3 $'\n'                 # -> ten
 
 Options:
-  -h, --help     Show this help message
-  -v, --version  Show version information
-
+  -h, --help           Show this help message
+  -v, --version        Show version information
+  
+in case you want --help, --version or -- itself as an argument:
+  --                   End of options 
+          
+;°)
+  
 EOF
+}
+
+MAPFILE() {
+    
+    # Gebruik:
+    # haystack="-1--test-3-"
+    # delimiter="--"
+    # MAPFILE "$haystack" "$delimiter" "fields" 
+    # for (( i=0; i<${#fields[@]}; i++ )); do
+    #     echo "$i : '${fields[$i]}'"
+    # done
+    
+    # Check of er een array naam is meegegeven
+    if [[ -z "$3" ]]; then
+        echo "MYBASENAME: $MYBASENAME in function ${0##*/}: No array name given." >&2
+        exit 123
+    fi
+    
+    local string="$1"
+    local delimiter="$2"
+    local -n output_array="$3"  # nameref naar array
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "function MAPFILE"
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "string : $string"
+    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$debug" ] && echo "output_array : $3"
+    
+    output_array=()
+    local current=""
+    local abc=0
+    local dlen=${#delimiter}
+    local slen=${#string}
+    local bcd=1  # start op index 1
+    
+    while [[ $abc -lt $slen ]]; do
+        # Check if we have delimiter at position i
+        if [[ "${string:$abc:$dlen}" == "$delimiter" ]]; then
+            output_array["$bcd"]="$current"
+            current=""
+            ((abc += dlen))
+            ((bcd++))
+        else
+            current+="${string:$abc:1}"
+            ((abc++))
+        fi
+    done
+
+    output_array["$bcd"]="$current"
+    ((bcd++))
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "aantal : ${#output_array[@]}" 
+    if [ -n "$debug" ] ; then
+      for (( abc=1; abc<=${#output_array[@]}; abc++ )); do
+        echo "$abc : '${output_array[$abc]}'"
+      done
+    fi
+   
 }
 
 TAIL() {
     
     local haystack="$1"
-    local n="$2"
+    local amount="$2"
     local delimiter="${3:- }"
+    
+    [ -n "$debug" ] && echo 
+    [ -n "$debug" ] && echo "function TAIL"
+    [ -n "$debug" ] && echo "amount : $amount"
+    [ -n "$debug" ] && echo "haystack : $haystack"
+    [ -n "$debug" ] && echo "delimiter : $delimiter"
     
     if [[ "$haystack" = "" ]]; then
       return 0
     fi
     
-    if  [[ "$debug" = "1" ]]; then
-      echo
-      echo "haystack : " 
-      echo "=>$haystack<=" 
-      echo
-      echo "n : $n"  
-      echo 
-      echo "delimiter : =>$delimiter<=" 
-      echo
+    # Validatie: amount moet een getal zijn
+    if [[ ! "$amount" =~ ^-?[0-9]+$ ]]; then
+        echo "$MYBASENAME: amount must be an integer" >&2
+        return 123
     fi
     
-    # Validatie: n moet een getal zijn
-    if [[ ! "$n" =~ ^-?[0-9]+$ ]]; then
-        echo "ERROR: n must be an integer" >&2
-        return 1
-    fi
-    
-    if [[ "$n" -eq 0 ]]; then
+    if [[ "$amount" -eq 0 ]]; then
       return 0
     fi
     
-    # Split de string op delimiter
-    local tokens=()
-    
-    mapfile -d "$delimiter" -O 1 -t tokens <<< "$haystack""$stopper"
-    
-    # Na het splitten, 
-    if [ "${#fields[@]}" -gt 0 ]; then
-      last="${#fields[@]}"
-      fields["$last"]="${fields[$last]%$'\n'}"
-      fields["$last"]="${fields[$last]%$stopper}"
-    fi
-        
-    if  [[ "$debug" = "1" ]]; then
-      echo
-      for abc in "${!tokens[@]}"; do
-        echo "token[$abc] : =>${tokens[abc]}<="
-      done
-    fi
-    
+    # Split op delimiter 
+    MAPFILE "$haystack" "$delimiter" "fields"
+     
     local stopnumber
     local startnummer
     
     # Bereken start stop
     
-    stopnumber="$last"
-
-    if [ "$n" -gt 0 ]; then
-        startnumber=$((last + 1 - n))
+    stopnumber="${#fields[@]}"
+    
+    [ "$amount" -eq 0 ] && return 0
+    
+    if [ "$amount" -gt 0 ]; then
+        startnumber=$(( stopnumber + 1 - amount))
     else
-        
-        if  [[ "$debug" = "1" ]]; then
-          echo 
-          echo "startnumber = - $n))"
-        fi
-        
-        startnumber=$((1 - n))
+        startnumber=$((1 - amount))
     fi
     
-    if  [[ "$debug" = "1" ]]; then
+    if [ -n "$debug" ] ; then
       echo
       echo "startnumber : $startnumber"
       echo "stopnumber : $stopnumber"
@@ -123,23 +163,19 @@ TAIL() {
     while [ $abc -le "$stopnumber" ]; do
       
       if [[ "$string" = "" ]];then
-        string=${tokens[abc]}
+        string="${fields["$abc"]}"
       else
-        string="${string}${delimiter}${tokens[abc]}"
+        string="${string}${delimiter}${fields[abc]}"
       fi
       
-      if  [[ "$debug" = "1" ]]; then
-        echo
-        echo "string : $string"
-      fi
-        
+      [ -n "$debug" ] && echo
+      [ -n "$debug" ] && echo "string : $string"
+      
       ((abc++))
       
     done
     
-    if  [[ "$debug" = "1" ]]; then
-      echo
-    fi
+    [ -n "$debug" ] && echo
     
     if [[ ! -z "$string" ]]; then
       echo "$string"
@@ -153,9 +189,8 @@ TAIL() {
 args=()
 
 # Check voor pipe input
-# Vervang de hele check door dit blok
 if read -t 0.01 -r -n 1 eerste_karakter; then
-    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af.
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
     # Verwijder marker + eventuele newline
@@ -168,11 +203,9 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
 fi
 
 debug=""
-verbose=""
-dryrun=""
-silent=""
 endofoptions=""
 for arg in "$@"; do
+
     case "$arg" in
         
         -h|--help)
@@ -200,159 +233,44 @@ for arg in "$@"; do
             fi
             ;;
         
-        --verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        --dryrun)
-            if [ -z "$endofoptions" ]; then
-              dryrun="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        -s|--silent)
-            if [ -z "$endofoptions"]; then
-              silent="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        
         --)
             if [ -z "$endofoptions" ]; then
               shift
-              endofoptions="1"  
+              endofoptions="1" 
+              endofoptionstoggle="1"
             else
               args+=("$arg")
             fi
             ;;
                 
-        -*)
-            if [ -z "$endofoptions" ]; then
-              args+=("$arg")
-            else
-              echo "ERROR: Unknown option $arg" >&2
-              show_usage
-              exit 123
-            fi
-            ;;
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
           
         *) 
             args+=("$arg")
             ;;
     esac
+    
 done
-
-# Verwerk argumenten
-debug=""
-verbose=""
-dryrun=""
-silent=""
-endofoptions=""
-for arg in "$@"; do
-    case "$arg" in
-        
-        -h|--help)
-            
-            if [ -z "$endofoptions" ]; then
-              show_usage
-              exit 0
-            fi
-            args+=("$arg")
-            ;;
-        
-        -v|--version)
-            if [ -z "$endofoptions" ]; then
-              echo "$VERSION"
-              exit 0
-            fi
-            args+=("$arg")
-            ;;
-           
-        -d|--debug)
-            if [ -z "$endofoptions" ]; then
-              debug="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        --verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        --dryrun)
-            if [ -z "$endofoptions" ]; then
-              dryrun="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        -s|--silent)
-            if [ -z "$endofoptions" = "0" ]; then
-              silent="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        
-        --)
-            if [ -z "$endofoptions" ]; then
-              shift
-              endofoptions="1"  
-            else
-              args+=("$arg")
-            fi
-            ;;
-                
-        -*)
-            if [ -z "$endofoptions" ]; then
-              args+=("$arg")
-            else
-              echo "ERROR: Unknown option $arg" >&2
-              show_usage
-              exit 123
-            fi
-            ;;
-          
-        *) 
-            args+=("$arg")
-            ;;
-    esac
-done
-
-# Check bash versie (mapfile bestaat sinds bash 4.0)
-if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
-  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
-  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
-  exit 123
-fi
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
-    echo "ERROR: Need at least text and n" >&2
-    show_usage
-    exit 1
+    echo "$MYBASENAME: Need at least text and n" >&2
+    exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
-    echo "ERROR: Too many arguments" >&2
-    show_usage
-    exit 1
+    echo "$MYBASENAME: Too many arguments" >&2
+    exit 123
 fi
 
 TAIL "${args[@]}"
+[ -n "$debug" ] && echo 
 exit $?
