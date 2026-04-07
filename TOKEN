@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.6"
+VERSION="0.20.7"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -38,9 +38,13 @@ line three
 line four" | $MYBASENAME -2 $'\n'               # -> line three
 
 Options:
-  -h, --help     Show this help message
-  -v, --version  Show version information
-  --             end of options
+  -h, --help           Show this help message
+  -v, --version        Show version information
+  
+in case you want --help, --version or -- itself as an argument:
+  --                   End of options 
+          
+;°)
   
 EOF
 }
@@ -129,8 +133,8 @@ TOKEN() {
     
     # Validatie: n moet een getal zijn en mag niet 0 zijn
     if [[ ! "$n" =~ ^-?[0-9]+$ ]] || [ "$n" -eq 0 ]; then
-        echo "ERROR: n must be a non-zero integer" >&2
-        return 1
+        echo "$MYBASENAME: n must be a non-zero integer" >&2
+        return 123
     fi
     
     # Split op delimiter 
@@ -143,14 +147,7 @@ TOKEN() {
         echo "$abc : ${fields["$abc"]}"
       done
     fi
-    
-    # Na het splitten, 
-    if [ "${#fields[@]}" -gt 0 ]; then
-      last="${#fields[@]}"
-      fields["$last"]="${fields[$last]%$'\n'}"
-      fields["$last"]="${fields[$last]%$stopper}"
-    fi
-        
+     
     # Bereken de effectieve index
     local index
     if [ "$n" -gt 0 ]; then
@@ -181,9 +178,8 @@ TOKEN() {
 args=()
 
 # Check voor pipe input
-# Vervang de hele check door dit blok
 if read -t 0.01 -r -n 1 eerste_karakter; then
-    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af.
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
     # Verwijder marker + eventuele newline
@@ -196,12 +192,9 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
 fi
 
 debug=""
-verbose=""
-dryrun=""
-silent=""
 endofoptions=""
-endofoptionstoggle=""
 for arg in "$@"; do
+
     case "$arg" in
         
         -h|--help)
@@ -229,30 +222,6 @@ for arg in "$@"; do
             fi
             ;;
         
-        --verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        --dryrun)
-            if [ -z "$endofoptions" ]; then
-              dryrun="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        -s|--silent)
-            if [ -z "$endofoptions"]; then
-              silent="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
         --)
             if [ -z "$endofoptions" ]; then
               shift
@@ -263,43 +232,32 @@ for arg in "$@"; do
             fi
             ;;
                 
-        -*)
-            if [ -z "$endofoptions" ]; then
-              args+=("$arg")
-            else
-              echo "ERROR: Unknown option $arg" >&2
-              show_usage
-              exit 123
-            fi
-            ;;
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
           
         *) 
             args+=("$arg")
             ;;
     esac
+    
 done
-
-[ -n "$debug" ] && echo 
-if [ -n "$endofoptionstoggle" ]; then
-  [ -n "$debug" ] && echo "WARNING '--' end of options encountered."
-fi
-
-# Check bash versie (mapfile bestaat sinds bash 4.0)
-if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
-  echo "Warning: Your bash version is ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2
-  echo "mapfile needs bash 4.0 or higher. Upgrade bash for full support." >&2
-  exit 123
-fi
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
-    echo "ERROR: Need at least text and token number" >&2
+    echo "$MYBASENAME: Need at least text and token number" >&2
     #show_usage
     exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
-    echo "ERROR: Too many arguments" >&2
+    echo "$MYBASENAME: Too many arguments" >&2
     #show_usage
     exit 123
 fi
