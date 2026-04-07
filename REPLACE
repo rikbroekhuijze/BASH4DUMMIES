@@ -37,9 +37,14 @@ line six'
   echo "one,two,three" | $SCRIPT_NAME ',' $',\n'
 
 Options:
-  -v, --version     Show version
-  -h, --help        Show this help message
-EOF
+  -h, --help           Show this help message
+  -v, --version        Show version information
+  
+in case you want --help, --version or -- itself as an argument:
+  --                   End of options 
+          
+;°)
+  
 
 }
 
@@ -71,9 +76,8 @@ REPLACE() {
 args=()
 
 # Check voor pipe input
-# Vervang de hele check door dit blok
 if read -t 0.01 -r -n 1 eerste_karakter; then
-    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af.
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
     # Verwijder marker + eventuele newline
@@ -86,11 +90,9 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
 fi
 
 debug=""
-verbose=""
-dryrun=""
-silent=""
 endofoptions=""
 for arg in "$@"; do
+
     case "$arg" in
         
         -h|--help)
@@ -118,67 +120,44 @@ for arg in "$@"; do
             fi
             ;;
         
-        --verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        --dryrun)
-            if [ -z "$endofoptions" ]; then
-              dryrun="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        -s|--silent)
-            if [ -z "$endofoptions"]; then
-              silent="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
-        
-        
         --)
             if [ -z "$endofoptions" ]; then
               shift
-              endofoptions="1"  
+              endofoptions="1" 
+              endofoptionstoggle="1"
             else
               args+=("$arg")
             fi
             ;;
                 
-        -*)
-            if [ -z "$endofoptions" ]; then
-              args+=("$arg")
-            else
-              echo "ERROR: Unknown option $arg" >&2
-              show_usage
-              exit 123
-            fi
-            ;;
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
           
         *) 
             args+=("$arg")
             ;;
     esac
+    
 done
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
     echo >&2
-    echo "ERROR! Need at least haystack and needle" >&2
+    echo "$MYBASENAME! Need at least haystack and needle" >&2
     # echo "Try $SCRIPT_NAME --help" >&2
     exit 123
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo >&2
-    echo "ERROR! Too many arguments" >&2
+    echo "$MYBASENAME! Too many arguments" >&2
     # echo "Try $SCRIPT_NAME --help" >&2
     exit 123
 fi
