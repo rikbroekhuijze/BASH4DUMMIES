@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-VERSION="0.20.3"
+VERSION="0.20.4"
 MYBASENAME=$(basename "$0")
 SCRIPT_NAME="$MYBASENAME"
 
@@ -40,12 +40,12 @@ Options:
   -h, --help           Show this help message
   -v, --version        Show version information
   
-in case you want --help, --version or -- itself as an argument:
+  in case you want --help, --version or -- itself as an argument:
   --                   End of options 
           
 ;°)
   
-
+EOF
 }
 
 REPLACE() {
