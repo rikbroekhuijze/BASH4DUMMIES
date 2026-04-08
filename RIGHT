@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.2"
+VERSION="0.20.3"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -13,8 +13,8 @@ show_usage() {
 
 Usage: $MYBASENAME <text> <amount>
 
-Returns the last n characters from the right side of a text string.
-If n is negative, returns all but the first n characters.
+Returns the last amount of characters from the right side of a text string.
+If amount is negative, returns all but the first n characters.
 
 Parameters:
   text        - The string to extract from (can be passed via pipe)
@@ -33,7 +33,7 @@ Options:
   -h, --help           Show this help message
   -v, --version        Show version information
   
-in case you want --help, --version or -- itself as an argument:
+  in case you want --help, --version or -- itself as an argument:
   --                   End of options 
           
 ;°)
