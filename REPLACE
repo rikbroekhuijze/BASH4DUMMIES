@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-VERSION="0.20.4"
+VERSION="0.20.5"
 MYBASENAME=$(basename "$0")
 SCRIPT_NAME="$MYBASENAME"
 
@@ -87,6 +87,17 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
     # if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
     # fi
+else
+  # pipe or file
+  if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+    stdin_content=$(cat; echo "$stopper")
+    stdin_content="${stdin_content%$stopper}"
+    stdin_content="${stdin_content%$'\n'}"
+    # we willen "" ook vangen.
+    # if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    # fi
+  fi
 fi
 
 debug=""
