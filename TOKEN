@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.7"
+VERSION="0.20.8"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -28,8 +28,8 @@ Examples:
   $MYBASENAME "one two three four five" 3       # -> three
   $MYBASENAME "one two three four five" -2      # -> four (second last token)
   $MYBASENAME "one,two,three,four,five" -2 ","  # -> four (delimiter is ',')
-  echo "one,two,three,four,five" | $MYBASENAME -2 ','  # -> four
-  $MYBASENAME "--test--" 2 -- "--"              # endofoptions as deliliter
+  echo "one,two,three" | $MYBASENAME -2 ','     # -> two
+  $MYBASENAME "--test--" 2 -- "--"              # -> test (endofoptions as deliliter)
   
   # Extract third line from multi-line text
   echo "line one
@@ -41,7 +41,7 @@ Options:
   -h, --help           Show this help message
   -v, --version        Show version information
   
-in case you want --help, --version or -- itself as an argument:
+  in case you want --help, --version or -- itself as an argument:
   --                   End of options 
           
 ;°)
@@ -189,6 +189,17 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
     # if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
     # fi
+else
+  # pipe or file
+  if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+    stdin_content=$(cat; echo "$stopper")
+    stdin_content="${stdin_content%$stopper}"
+    stdin_content="${stdin_content%$'\n'}"
+    # we willen "" ook vangen.
+    # if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    # fi
+  fi
 fi
 
 debug=""
