@@ -1,0 +1,152 @@
+#!/bin/env bash
+
+# set -x  # Toont elke regel voor uitvoering
+# set -e  # Stopt bij eerste fout
+
+VERSION="0.1.1"
+MYBASENAME=$(basename "$0")
+SCRIPTNAME="$MYBASENAME"
+
+char1=$'\x01'
+char2=$'\x02'
+char3=$'\x03'
+stopper="${char1}${char2}${char3}${char2}${char1}"
+
+show_usage() {
+    cat << EOF
+    
+Usage: $MYBASENAME "<file>"
+       
+Returns true(0) if file id a file, else returns false(1).
+
+Examples:
+  if $MYBASENAME "\$file" ; then
+    echo "\$file exists."
+  fi
+  echo "\$file" | $MYBASENAME && echo "\$file exists."
+  
+Options:
+  -h, --help           Show this help message
+  -v, --version        Show version information
+  --                   End of options 
+          
+;°)
+  
+EOF
+}
+
+ISFILE()     { [[ -f "$1" ]]; }                          
+
+# MAIN 
+args=()
+
+#
+# Check voor pipe input
+if read -t 0.01 -r -n 1 eerste_karakter; then
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
+    rest=$(cat; echo "$stopper")
+    stdin_content="${eerste_karakter}${rest}"
+    # Verwijder marker + eventuele newline
+    stdin_content="${stdin_content%$stopper}"
+    stdin_content="${stdin_content%$'\n'}"
+    # we willen "" ook vangen.
+    # if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    # fi
+# else
+  # # pipe or file
+  # # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop.
+  # if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+  #   stdin_content=$(cat; echo "$stopper")
+  #   stdin_content="${stdin_content%$stopper}"
+  #   stdin_content="${stdin_content%$'\n'}"
+  #   # we willen "" ook vangen.
+  #   # if [ -n "$stdin_content" ]; then
+  #       args+=("$stdin_content")
+  #   # fi
+ #  fi
+fi
+
+verbose=""
+endofoptions=""
+for arg in "$@"; do
+
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -v|--verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -d|--debug)
+            set -x
+            ;;
+            
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1" 
+              endofoptionstoggle="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+    
+done
+
+if [ "${#args[@]}" -lt "1" ] ; then
+  echo "$MYBASENAME: No argument provided." >&2
+  exit 123
+fi
+
+if [ "${#args[@]}" -gt "1" ] ; then
+  echo "$MYBASENAME: Too manny arguments." >&2
+  exit 123
+fi
+
+if [ -n "$verbose" ] ; then
+  echo
+  echo ${#args[@]}
+  for ((abc=0; abc<${#args[@]}; abc++)); do
+    echo "argument $abc : ${args[$((abc))]}"
+  done
+  echo
+fi
+
+ISFILE ${args[0]}
+exit $?
