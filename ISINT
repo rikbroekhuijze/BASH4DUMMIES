@@ -1,0 +1,128 @@
+#!/bin/bash
+
+VERSION="0.3.3"
+MYBASENAME=$(basename "$0")
+
+show_usage() {
+
+cat << EOF
+
+Usage: $MYBASENAME <argument>
+
+Exits true (0) if argument is a legitimate integer, else false (1).
+ 
+Examples:
+  $MYBASENAME 123 ; echo \$?
+  echo 123 | $MYBASENAME ; echo \$?
+  if $MYBASENAME "3" ; then echo "yes" ; fi
+  [ $MYBASENAME "abc" ] && echo "yes"
+  
+Options:
+  -h, --help           Show this help message.
+  -v, --version        Show version information.
+  --                   End of options 
+          
+;°)
+ 
+EOF
+}
+
+isint() {
+    [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+
+# MAIN 
+args=()
+
+# Check voor pipe input
+if read -t 0.01 -r -n 1 eerste_karakter; then
+    # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
+    rest=$(cat; echo "$stopper")
+    stdin_content="${eerste_karakter}${rest}"
+    # Verwijder marker + eventuele newline
+    stdin_content="${stdin_content%$stopper}"
+    stdin_content="${stdin_content%$'\n'}"
+    # we willen "" ook vangen.
+    # if [ -n "$stdin_content" ]; then
+        args+=("$stdin_content")
+    # fi
+# else
+  # # pipe or file
+  # # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop.
+  # if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+  #   stdin_content=$(cat; echo "$stopper")
+  #   stdin_content="${stdin_content%$stopper}"
+  #   stdin_content="${stdin_content%$'\n'}"
+  #   # we willen "" ook vangen.
+  #   # if [ -n "$stdin_content" ]; then
+  #       args+=("$stdin_content")
+  #   # fi
+ #  fi
+fi
+
+# Verwerk argumenten
+for arg in "$@"; do
+    case "$arg" in
+        
+        -h|--help)
+
+            if [ "$endofoptions" = "0" ]; then
+              show_usage
+              exit 0
+            fi
+            ;;
+        
+        -v|--version)
+            if [ "$endofoptions" = "0" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            ;;
+           
+        -d|--debug)
+            if [ "$endofoptions" = "0" ]; then
+              debug="1"
+            fi
+            ;;
+         
+        --)
+            shift
+            endofoptions="1"    
+            ;;
+                
+        -*)
+            if [ "$endofoptions" = "1" ]; then
+              args+=("$arg")
+            else
+              echo "ERROR: Unknown option $arg" >&2
+              show_usage
+              exit 1
+            fi
+            ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+done
+
+if [ ! "${#args[@]}" = "1" ];  then 
+  echo >&2
+  echo "ERROR! Wrong number of arguments." >&2
+  echo "try $MYBASENAME --help" >&2
+  exit 123
+fi
+
+isint ${args[0]}
+retval="$?"
+
+# if ! [ "$quiet" = "1" ] ; then
+#   if [ "$retval" = "0" ] ; then
+#     echo "true"
+#   else
+#     echo "false"
+#   fi
+# fi
+
+exit "$retval"
