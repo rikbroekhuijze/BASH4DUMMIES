@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.9"
+VERSION="0.20.10"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -286,5 +286,6 @@ fi
 
 # Roep TOKEN aan
 TOKEN "${args[@]}"
-[ -n "$debug" ] && echo 
-exit $?
+retval="$?"
+[ -n "$verbose" ] && echo 
+exit "$retval"
