@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.15"
+VERSION="0.20.16"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -44,6 +44,21 @@ Options:
   
 EOF
 }
+
+# check only voor verbose & debug first.
+verbose=""
+debug=""
+for arg in "$@"; do
+    [ "$arg" = "--" ] && break
+    if [ "$arg" = "--verbose" ]; then
+        verbose=1
+        break
+    fi
+    if [ "$arg" = "--debug" ]; then
+        set -x
+        break
+    fi
+done
 
 MAPFILE() {
     
@@ -158,7 +173,7 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
  #  fi
 fi
 
-debug=""
+[ -n "$verbose" ] && echo
 endofoptions=""
 for arg in "$@"; do
 
@@ -180,14 +195,20 @@ for arg in "$@"; do
             fi
             args+=("$arg")
             ;;
-           
+        
+        -v|--verbose)
+        
+           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           ;;
+        
         -d|--debug)
-            if [ -z "$endofoptions" ]; then
-              debug="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
+           [ -n "$verbose" ] && echo "DEBUG"
+           [ -n "$verbose" ] && echo "endofoptions : $endofoptions"
+           if NOT ISNULL "$endofoptions"; then 
+             [ -n "$verbose" ] && echo "NOT ISNULL"
+             args+=("$arg") 
+           fi
+           ;;
         
         --)
             if [ -z "$endofoptions" ]; then
@@ -216,6 +237,16 @@ for arg in "$@"; do
     
 done
 
+if [ -n "$verbose" ] ; then
+  echo
+  echo "number of arguments : ${#args[@]}"
+  echo "stdin_content : $stdin_content"
+  for ((abc=0; abc<${#args[@]}; abc++)); do
+    echo "argument $abc : ${args[$((abc))]}"
+  done
+  echo
+fi
+
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 1 ]; then
     echo "0"
@@ -229,5 +260,6 @@ if [ "${#args[@]}" -gt 3 ]; then
 fi
 
 AMOUNT "${args[@]}"
+retval="$?"
 [ -n "$debug" ] && echo 
-exit $?
+exit "$retval"
