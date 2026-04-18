@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.5"
+VERSION="0.20.6"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -10,7 +10,6 @@ stopper="${char1}${char2}${char3}${char2}${char1}"
 
 show_usage() {
     cat << EOF
-
 Usage: $MYBASENAME <haystack> <needle> [<start>]
 
 Finds the position of a substring in a string.
@@ -39,8 +38,22 @@ Options:
 ;°)
   
 EOF
-
 }
+
+# check only voor verbose & debug first.
+verbose=""
+debug=""
+for arg in "$@"; do
+    [ "$arg" = "--" ] && break
+    if [ "$arg" = "--verbose" ]; then
+        verbose=1
+        break
+    fi
+    if [ "$arg" = "--debug" ]; then
+        set -x
+        break
+    fi
+done
 
 INSTR() {
     
