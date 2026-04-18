@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.1"
+VERSION="0.1.2"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -34,6 +34,21 @@ Options:
   
 EOF
 }
+
+# check only voor verbose & debug first.
+verbose=""
+debug=""
+for arg in "$@"; do
+    [ "$arg" = "--" ] && break
+    if [ "$arg" = "--verbose" ]; then
+        verbose=1
+        break
+    fi
+    if [ "$arg" = "--debug" ]; then
+        set -x
+        break
+    fi
+done
 
 ISFILE()     { [[ -f "$1" ]]; }                          
 
