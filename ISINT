@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.3"
+VERSION="0.3.4"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -27,7 +27,22 @@ Options:
 EOF
 }
 
-isint() {
+# check only voor verbose & debug first.
+verbose=""
+debug=""
+for arg in "$@"; do
+    [ "$arg" = "--" ] && break
+    if [ "$arg" = "--verbose" ]; then
+        verbose=1
+        break
+    fi
+    if [ "$arg" = "--debug" ]; then
+        set -x
+        break
+    fi
+done
+
+ISINT() {
     [[ "$1" =~ ^[0-9]+$ ]]
 }
 
@@ -114,7 +129,7 @@ if [ ! "${#args[@]}" = "1" ];  then
   exit 123
 fi
 
-isint ${args[0]}
+ISINT ${args[0]}
 retval="$?"
 
 # if ! [ "$quiet" = "1" ] ; then
