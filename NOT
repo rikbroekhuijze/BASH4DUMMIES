@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.1"
+VERSION="0.1.2"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -34,12 +34,26 @@ OPTIONS
 EOF
 }
 
+# check only voor verbose & debug first.
+verbose=""
+debug=""
+for arg in "$@"; do
+    [ "$arg" = "--" ] && break
+    if [ "$arg" = "--verbose" ]; then
+        verbose=1
+        break
+    fi
+    if [ "$arg" = "--debug" ]; then
+        set -x
+        break
+    fi
+done
+
 NOT() { ! "$@"; }
 
 # MAIN 
 args=()
 
-#
 # Check voor pipe input
 if read -t 0.01 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
@@ -63,7 +77,86 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
   #   # if [ -n "$stdin_content" ]; then
   #       args+=("$stdin_content")
   #   # fi
- #  fi
+  # fi
+  
+fi
+
+[ -n "$verbose" ] && echo
+endofoptions=""
+for arg in "$@"; do
+   
+    [ -n "$verbose" ] && echo "arg : $arg"
+    
+    case "$arg" in
+        
+        -h|--help)
+            
+            if [ -z "$endofoptions" ]; then
+              show_usage
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+        
+        -v|--version)
+            if [ -z "$endofoptions" ]; then
+              echo "$VERSION"
+              exit 0
+            fi
+            args+=("$arg")
+            ;;
+           
+        -v|--verbose)
+            if [ -z "$endofoptions" ]; then
+              verbose="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+        
+        -d|--debug)
+            if [ -z "$endofoptions" ]; then
+              set -x
+            else
+              args+=("$arg")
+            fi
+            ;;
+            
+        --)
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1" 
+              endofoptionstoggle="1"
+            else
+              args+=("$arg")
+            fi
+            ;;
+                
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
+          
+        *) 
+            args+=("$arg")
+            ;;
+    esac
+    
+done
+
+if [ -n "$verbose" ] ; then
+  echo
+  echo "number of arguments : ${#args[@]}"
+  echo "stdin_content : $stdin_content"
+  for ((abc=0; abc<${#args[@]}; abc++)); do
+    echo "argument $abc : ${args[$((abc))]}"
+  done
+  echo
 fi
 
 NOT "${args[@]}"
