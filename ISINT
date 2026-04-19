@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.3.4"
+VERSION="0.3.5"
 MYBASENAME=$(basename "$0")
 
 show_usage() {
@@ -76,50 +76,61 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
  #  fi
 fi
 
-# Verwerk argumenten
+[ -n "$verbose" ] && echo
+endofoptions=""
 for arg in "$@"; do
+   
+    [ -n "$verbose" ] && echo "arg : $arg"
+    
     case "$arg" in
         
         -h|--help)
-
-            if [ "$endofoptions" = "0" ]; then
+            
+            if [ -z "$endofoptions" ]; then
               show_usage
               exit 0
             fi
+            args+=("$arg")
             ;;
         
         -v|--version)
-            if [ "$endofoptions" = "0" ]; then
+            if [ -z "$endofoptions" ]; then
               echo "$VERSION"
               exit 0
             fi
+            args+=("$arg")
             ;;
-           
-        -d|--debug)
-            if [ "$endofoptions" = "0" ]; then
-              debug="1"
-            fi
-            ;;
-         
+        
+        -v|--verbose|-d|--debug)
+        
+           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           ;;
+            
         --)
-            shift
-            endofoptions="1"    
+            if [ -z "$endofoptions" ]; then
+              shift
+              endofoptions="1" 
+              endofoptionstoggle="1"
+            else
+              args+=("$arg")
+            fi
             ;;
                 
-        -*)
-            if [ "$endofoptions" = "1" ]; then
-              args+=("$arg")
-            else
-              echo "ERROR: Unknown option $arg" >&2
-              show_usage
-              exit 1
-            fi
-            ;;
+    #    -*)
+    #        # what about a megative number ?
+    #        if [ -z "$endofoptions" ]; then
+    #          args+=("$arg")
+    #        else
+    #          echo "$MYBASENAME: Unknown option $arg" >&2
+    #          exit 123
+    #        fi
+    #        ;;
           
         *) 
             args+=("$arg")
             ;;
     esac
+    
 done
 
 if [ ! "${#args[@]}" = "1" ];  then 
