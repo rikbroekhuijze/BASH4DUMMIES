@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.6"
+VERSION="0.20.9"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -18,7 +18,8 @@ Returns the position (1-based) of the first occurrence, or 0 if not found.
 Parameters:
   haystack    - The string to search in (can be passed via pipe)
   needle      - The substring to look for
-  start       - Optional: start searching from this position (1-based)
+  start       - Optional: start searching from this position (1-based).
+                 Negative values count from the end (-1 = last character).
 
 Examples:
   $MYBASENAME "Hello world" "world"              # -> 7
@@ -26,13 +27,14 @@ Examples:
   $MYBASENAME "Hello world" "xyz"                # -> 0
   $MYBASENAME "Hello world" "o" 5                # -> 5 (start at position 5)
   $MYBASENAME "Hello world" "o" 6                # -> 8 (start at position 6)
+  $MYBASENAME "Hello world" "o" -1               # -> 8 (start from last char)
+  $MYBASENAME "Hello world" "o" -3               # -> 5 (start from 3rd from end)
+  $MYBASENAME "ababa" "aba" -1                   # -> 3 (last occurrence)
   echo "Hello world" | $MYBASENAME "world"       # -> 7
 
 Options:
   -h, --help           Show this help message
   -v, --version        Show version information
-  
-  in case you want --help, --version or -- itself as an argument:
   --                   End of options 
           
 ;°)
@@ -47,11 +49,11 @@ for arg in "$@"; do
     [ "$arg" = "--" ] && break
     if [ "$arg" = "--verbose" ]; then
         verbose=1
-        break
+        # break
     fi
     if [ "$arg" = "--debug" ]; then
         set -x
-        break
+        # break
     fi
 done
 
@@ -61,12 +63,36 @@ INSTR() {
     local needle="$2"
     local start="${3:-1}"
     local pos=0
+    local len=${#haystack}
     
     # Validatie
     if [ -z "$haystack" ] || [ -z "$needle" ]; then
         echo 0
         return 1
     fi
+    
+    NOT ISNULL "$verbose" && echo
+    NOT ISNULL "$verbose" && echo "start : $start"
+    
+    # Bepaal startpositie (1-based)
+    local start_pos
+    if [[ "$start" =~ ^-?[0-9]+$ ]]; then
+    # if NOT ISINT "$start"; then  # no ISINT doesnot grab negative ints
+        if [ "$start" -gt 0 ]; then
+            start_pos=$start
+        elif [ "$start" -lt 0 ]; then
+            start_pos=$((len + start + 1))
+        else
+            start_pos=1
+        fi
+    else
+        echo "$MYBASENAME: start must be an integer" >&2
+        return 1
+    fi
+    
+    start="$start_pos"
+    
+    NOT ISNULL "$verbose" && echo "start : $start"
     
     if [[ ! "$start" =~ ^[0-9]+$ ]] || [ "$start" -lt 1 ]; then
         echo "$MYBASENAME: start position must be a positive integer" >&2
@@ -127,10 +153,12 @@ if read -t 0.01 -r -n 1 eerste_karakter; then
  #  fi
 fi
 
-debug=""
+[ -n "$verbose" ] && echo
 endofoptions=""
 for arg in "$@"; do
-
+   
+    [ -n "$verbose" ] && echo "arg : $arg"
+    
     case "$arg" in
         
         -h|--help)
@@ -149,15 +177,12 @@ for arg in "$@"; do
             fi
             args+=("$arg")
             ;;
-           
-        -d|--debug)
-            if [ -z "$endofoptions" ]; then
-              debug="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
         
+        -v|--verbose|-d|--debug)
+        
+           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           ;;
+            
         --)
             if [ -z "$endofoptions" ]; then
               shift
@@ -184,6 +209,16 @@ for arg in "$@"; do
     esac
     
 done
+
+if [ -n "$verbose" ] ; then
+  echo
+  echo "number of arguments : ${#args[@]}"
+  echo "stdin_content : $stdin_content"
+  for ((abc=0; abc<${#args[@]}; abc++)); do
+    echo "argument $abc : ${args[$((abc))]}"
+  done
+  echo
+fi
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
