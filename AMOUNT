@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.17"
+VERSION="0.20.18"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -176,7 +176,9 @@ fi
 [ -n "$verbose" ] && echo
 endofoptions=""
 for arg in "$@"; do
-
+   
+    [ -n "$verbose" ] && echo "arg : $arg"
+    
     case "$arg" in
         
         -h|--help)
@@ -196,20 +198,11 @@ for arg in "$@"; do
             args+=("$arg")
             ;;
         
-        -v|--verbose)
+        -v|--verbose|-d|--debug)
         
            if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
            ;;
-        
-        -d|--debug)
-           [ -n "$verbose" ] && echo "DEBUG"
-           [ -n "$verbose" ] && echo "endofoptions : $endofoptions"
-           if NOT ISNULL "$endofoptions"; then 
-             [ -n "$verbose" ] && echo "NOT ISNULL"
-             args+=("$arg") 
-           fi
-           ;;
-        
+            
         --)
             if [ -z "$endofoptions" ]; then
               shift
