@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.3"
+VERSION="0.1.4"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -82,10 +82,12 @@ if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
  #  fi
 fi
 
-verbose=""
+[ -n "$verbose" ] && echo
 endofoptions=""
 for arg in "$@"; do
-
+   
+    [ -n "$verbose" ] && echo "arg : $arg"
+    
     case "$arg" in
         
         -h|--help)
@@ -104,18 +106,11 @@ for arg in "$@"; do
             fi
             args+=("$arg")
             ;;
-           
-        -v|--verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
         
-        -d|--debug)
-            set -x
-            ;;
+        -v|--verbose|-d|--debug)
+        
+           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           ;;
             
         --)
             if [ -z "$endofoptions" ]; then
