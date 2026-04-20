@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1"
+VERSION="0.1.1"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -57,9 +57,8 @@ ISNULL() {
 
 # MAIN 
 args=()
-
 # Check voor pipe input
-if read -t 0.01 -r -n 1 eerste_karakter; then
+if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
@@ -183,4 +182,3 @@ ISNULL "${args[0]}"
 retval="$?"
 [ -n "$verbose" ] && echo 
 exit "$retval"
-
