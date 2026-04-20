@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.9"
+VERSION="0.20.10"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -179,10 +179,12 @@ if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
  #  fi
 fi
 
-debug=""
+[ -n "$verbose" ] && echo
 endofoptions=""
 for arg in "$@"; do
-
+   
+    [ -n "$verbose" ] && echo "arg : $arg"
+    
     case "$arg" in
         
         -h|--help)
@@ -201,15 +203,12 @@ for arg in "$@"; do
             fi
             args+=("$arg")
             ;;
-           
-        -d|--debug)
-            if [ -z "$endofoptions" ]; then
-              debug="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
         
+        -v|--verbose|-d|--debug)
+        
+           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           ;;
+            
         --)
             if [ -z "$endofoptions" ]; then
               shift
