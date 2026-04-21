@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.15"
+VERSION="0.20.17"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -84,12 +84,12 @@ MAPFILE() {
     local delimiter="$2"
     local -n output_array="$3"  # nameref naar array
     
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "function MAPFILE"
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "string : $string"
-    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
-    [ -n "$debug" ] && echo "output_array : $output_array"
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "function MAPFILE"
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "string : $string"
+    [ -n "$verbose" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$verbose" ] && echo "output_array : $output_array"
     
     output_array=()
     local current=""
@@ -114,9 +114,9 @@ MAPFILE() {
     output_array["$bcd"]="$current"
     ((bcd++))
     
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "aantal : ${#output_array[@]}" 
-    if [ -n "$debug" ] ; then
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "aantal : ${#output_array[@]}" 
+    if [ -n "$verbose" ] ; then
       for (( abc=1; abc<=${#output_array[@]}; abc++ )); do
         echo "$abc : '${output_array[$abc]}'"
       done
@@ -130,12 +130,12 @@ TOKEN() {
     local n="$2"
     local delimiter="$3"
     
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "function TOKEN"
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "haystack : $haystack"
-    [ -n "$debug" ] && echo "n : $n"
-    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "function TOKEN"
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "haystack : $haystack"
+    [ -n "$verbose" ] && echo "n : $n"
+    [ -n "$verbose" ] && echo "delimiter : =>$delimiter<="
     
     [ "$n" -eq 0 ] && exit 0
     
@@ -144,7 +144,7 @@ TOKEN() {
         delimiter=" "
     fi
     
-    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$verbose" ] && echo "delimiter : =>$delimiter<="
     
     # Validatie: n moet een getal zijn en mag niet 0 zijn
     if [[ ! "$n" =~ ^-?[0-9]+$ ]] || [ "$n" -eq 0 ]; then
@@ -155,9 +155,9 @@ TOKEN() {
     # Split op delimiter 
     MAPFILE "$haystack" "$delimiter" "fields"
     
-    [ -n "$debug" ] && echo  
-    [ -n "$debug" ] && echo "aantal : ${#fields[@]}" 
-    if [ -n "$debug" ]; then
+    [ -n "$verbose" ] && echo  
+    [ -n "$verbose" ] && echo "aantal : ${#fields[@]}" 
+    if [ -n "$verbose" ]; then
       for (( abc=1;abc<="${#fields[@]}";abc++ )) ; do
         echo "$abc : ${fields["$abc"]}"
       done
@@ -171,12 +171,12 @@ TOKEN() {
         index=$((${#fields[@]} + n + 1))
     fi
     
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "index : $index"
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "index : $index"
     
     # Check of token bestaat
     if [ "$index" -lt 0 ] || [ "$index" -gt "${#fields[@]}" ]; then
-    [ -n "$debug" ] && echo "token bestaat niet."
+    [ -n "$verbose" ] && echo "token bestaat niet."
         return 1
     fi
     
@@ -184,7 +184,7 @@ TOKEN() {
     if [ -n "${fields[index]}" ]; then
         echo "${fields[index]}"
     else
-      [ -n "$debug" ] && echo "token is leeg."
+      [ -n "$verbose" ] && echo "token is leeg."
     fi
     
 }
@@ -246,7 +246,7 @@ for arg in "$@"; do
         
         -v|--verbose|-d|--debug)
         
-           if [ -z "$endofoptions" ]; then args+=("$arg") ; fi
+           if [ -n "$endofoptions" ]; then args+=("$arg") ; fi
            ;;
             
         --)
@@ -290,8 +290,8 @@ if [ "${#args[@]}" -gt 3 ]; then
 fi
 
 # Debug: toon args
-[ -n "$debug" ] && echo 
-if [ -n "$debug" ] ; then
+[ -n "$verbose" ] && echo 
+if [ -n "$verbose" ] ; then
   echo "args: ${#args[@]}" 
   for abc in "${!args[@]}"; do
      echo "  $abc: '${args[abc]}'" 
