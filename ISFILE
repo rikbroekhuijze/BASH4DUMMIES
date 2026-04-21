@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.4"
+VERSION="0.1.5"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -109,7 +109,7 @@ for arg in "$@"; do
         
         -v|--verbose|-d|--debug)
         
-           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           if [ -z "$endofoptions" ]; then args+=("$arg") ; fi
            ;;
             
         --)
