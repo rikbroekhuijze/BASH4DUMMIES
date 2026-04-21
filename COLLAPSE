@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.10"
+VERSION="0.20.11"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -151,7 +151,7 @@ for arg in "$@"; do
         
         -v|--verbose|-d|--debug)
         
-           if [ -z "$endofoptions" ]; then args+=("$arg") ; fi
+           if [ -n "$endofoptions" ]; then args+=("$arg") ; fi
            ;;
             
         --)
