@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-VERSION="0.20.9"
+VERSION="0.20.10"
 MYBASENAME=$(basename "$0")
 SCRIPT_NAME="$MYBASENAME"
 
@@ -144,7 +144,7 @@ for arg in "$@"; do
         
         -v|--verbose|-d|--debug)
         
-           if NOT ISNULL "$endofoptions"; then args+=("$arg") ; fi
+           if [ -z "$endofoptions" ]; then args+=("$arg") ; fi
            ;;
             
         --)
