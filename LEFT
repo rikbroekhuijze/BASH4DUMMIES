@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.10"
+VERSION="0.20.11"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -88,7 +88,7 @@ args=()
 
 #
 # Check voor pipe input
-if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
+if IFS='' read -t 0.1 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
