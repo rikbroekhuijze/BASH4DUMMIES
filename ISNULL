@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.6"
+VERSION="0.1.7"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -51,8 +51,7 @@ done
 
 ISNULL() {
     # Check of variabele niet bestaat OF leeg is
-    # [[ -z "${!1}" ]]
-    [[ -z "${1}" ]]
+    [ -z "${1}" ]
 }
 
 # MAIN 
