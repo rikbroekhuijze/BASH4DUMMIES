@@ -1,9 +1,9 @@
-#!/bin/env bash
+#!/bin/bash
 
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.2"
+VERSION="0.1"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -15,20 +15,17 @@ stopper="${char1}${char2}${char3}${char2}${char1}"
 show_usage() {
     cat << EOF
     
-Usage: $MYBASENAME <command> [arguments...]   
+No description yet.
 
-Negate the exit status of a command (wrapper around bash '!' operator)
-   
-EXAMPLES
-    if NOT ISINT "$age"; then
-       echo "Leeftijd moet een getal zijn"
-    fi
+Examples:
+  $MYBASENAME "argument"
+  echo "argument" | $MYBASENAME
 
-OPTIONS
-    -h, --help           Show this help message
-    -v, --version        Show version information
-    --                   End of options (useful if command starts with -)
-
+Options:
+  -h, --help           Show this help message
+  -v, --version        Show version information
+  --                   End of options 
+          
 ;°)
   
 EOF
@@ -39,23 +36,50 @@ verbose=""
 debug=""
 for arg in "$@"; do
     [ "$arg" = "--" ] && break
-    if [ "$arg" = "--verbose" ]; then
-        verbose=1
-        break
-    fi
-    if [ "$arg" = "--debug" ]; then
-        set -x
-        break
-    fi
+    [ "$arg" = "--verbose" ] && verbose=1
+    [ "$arg" = "--debug" ] && set -x
 done
 
-NOT() { ! "$@"; }
+BETWEEN(){
+
+  haystack="$1"
+  first="$2"
+  last="$3"
+  
+  local start
+  local stop
+  local len
+  
+  start="$(echo "$haystack" | INSTR "$first")"
+    
+  if [ "$start" -eq 0 ]; then
+      [ -n "$verbose" ] && echo "Start marker '$start_marker' not found" >&2
+      return 1
+  fi
+  
+  len="$(echo "$first" | LEN)"
+  start="$((start+len))"
+  stop="$(echo "$haystack" | INSTR "$3" "$start")"
+  
+  echo "stop : $stop"
+  
+  if [ "$stop" -eq 0 ]; then
+    echo "return 1"
+      return 1
+  fi
+  
+  len=$((stop-start))
+  
+  echo "$(echo "$haystack" | MID "$start" "$len")"
+  
+}
+  
 
 # MAIN 
 args=()
 
 # Check voor pipe input
-if read -t 0.01 -r -n 1 eerste_karakter; then
+if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
@@ -105,22 +129,14 @@ for arg in "$@"; do
             fi
             args+=("$arg")
             ;;
-           
-        -v|--verbose)
-            if [ -z "$endofoptions" ]; then
-              verbose="1"
-            else
-              args+=("$arg")
-            fi
-            ;;
         
-        -d|--debug)
-            if [ -z "$endofoptions" ]; then
-              set -x
-            else
-              args+=("$arg")
-            fi
-            ;;
+        -v|--verbose|-d|--debug)
+        
+           if [ -n "$endofoptions" ]; then 
+             args+=("$arg") 
+           fi
+           
+           ;;
             
         --)
             if [ -z "$endofoptions" ]; then
@@ -152,12 +168,28 @@ done
 if [ -n "$verbose" ] ; then
   echo
   echo "number of arguments : ${#args[@]}"
-  echo "stdin_content : $stdin_content"
+  echo "stdin_content : =>$stdin_content<="
   for ((abc=0; abc<${#args[@]}; abc++)); do
-    echo "argument $abc : ${args[$((abc))]}"
+    echo "argument $abc : =>${args[$((abc))]}<="
   done
   echo
 fi
 
-NOT "${args[@]}"
-exit $?
+
+if [ "${#args[@]}" -lt "2" ] ; then
+  echo >&2
+  echo "$MYBASENAME:  Missing argument(s)." >&2
+  echo  >&2
+  exit 123
+fi
+
+if [ "${#args[@]}" -gt "3" ] ; then
+  echo >&2
+  echo "$MYBASENAME: Too manny arguments." >&2
+  echo  >&2
+  exit 123
+fi
+
+BETWEEN ${args[@]}
+retval="$?"
+exit "$retval"
