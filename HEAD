@@ -1,7 +1,8 @@
 #!/bin/bash
 
-VERSION="0.20.12"
+VERSION="0.20.13"
 MYBASENAME=$(basename "$0")
+SCRIPTNAME="$MYBASENAME"
 
 char1=$'\x01'
 char2=$'\x02'
@@ -53,15 +54,24 @@ verbose=""
 debug=""
 for arg in "$@"; do
     [ "$arg" = "--" ] && break
-    if [ "$arg" = "--verbose" ]; then
-        verbose=1
-        break
-    fi
-    if [ "$arg" = "--debug" ]; then
-        set -x
-        break
-    fi
+    [ "$arg" = "--verbose" ] && verbose=1
+    [ "$arg" = "--debug" ] && set -x
 done
+
+# Cross-platform versie (werkt ook op macOS)
+if command -v readlink >/dev/null 2>&1 && readlink -f . >/dev/null 2>&1; then
+    SCRIPTPATH="$(readlink -f "${BASH_SOURCE[0]}")"
+else
+    # Fallback voor macOS (gebruik cd + pwd truc)
+    SCRIPTPATH="$( cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )/$(basename "${BASH_SOURCE[0]}")"
+fi
+
+SCRIPTDIR="$(dirname "$SCRIPTPATH")"
+if [ "$(basename "$SCRIPTDIR")" = "BIN" ] ||  [ "$(basename "$SCRIPTDIR")" = "SRC" ] || [ "$(basename "$SCRIPTDIR")" = "MUSEUM" ] ; then
+  DIRECTORY="$(dirname "$SCRIPTDIR")"
+else
+  DIRECTORY="$SCRIPTDIR"
+fi
 
 MAPFILE() {
     
@@ -75,7 +85,7 @@ MAPFILE() {
     
     # Check of er een array naam is meegegeven
     if [[ -z "$3" ]]; then
-        echo "MYBASENAME: $MYBASENAME in function ${0##*/}: No array name given." >&2
+        echo "MYBASENAME: ERROR in function ${0##*/}: No array name given." >&2
         exit 123
     fi
     
@@ -83,12 +93,12 @@ MAPFILE() {
     local delimiter="$2"
     local -n output_array="$3"  # nameref naar array
     
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "function MAPFILE"
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "string : $string"
-    [ -n "$debug" ] && echo "delimiter : =>$delimiter<="
-    [ -n "$debug" ] && echo "output_array : $output_array"
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "function MAPFILE"
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "string : $string"
+    [ -n "$verbose" ] && echo "delimiter : =>$delimiter<="
+    [ -n "$verbose" ] && echo "output_array : $output_array"
     
     output_array=()
     local current=""
@@ -113,9 +123,9 @@ MAPFILE() {
     output_array["$bcd"]="$current"
     ((bcd++))
     
-    [ -n "$debug" ] && echo 
-    [ -n "$debug" ] && echo "aantal : ${#output_array[@]}" 
-    if [ -n "$debug" ] ; then
+    [ -n "$verbose" ] && echo 
+    [ -n "$verbose" ] && echo "aantal : ${#output_array[@]}" 
+    if [ -n "$verbose" ] ; then
       for (( abc=1; abc<=${#output_array[@]}; abc++ )); do
         echo "$abc : '${output_array[$abc]}'"
       done
@@ -136,8 +146,9 @@ HEAD() {
       return 0
     fi
     
-    if  [[ "$debug" = "1" ]]; then
+    if [ -n "$verbose" ]; then
       echo
+      echo "verbose : $verbose"
       echo "haystack : $haystack " 
       echo "amount : $amount"  
       echo "delimiter : =>$delimiter<=" 
@@ -166,28 +177,38 @@ HEAD() {
         stopnumber=$((last + amount))
     fi
     
-    [ -n "$debug" ] && echo "stopnumber : $stopnumber"
+    [ -n "$verbose" ] && echo "stopnumber : $stopnumber"
     
     abc=1
     string=""
     while [ $abc -le "$stopnumber" ]; do
       
-      if [[ "$string" = "" ]];then
-        string=${fields[abc]}
+      [ -n "$verbose" ] && echo
+      [ -n "$verbose" ] && echo "$abc : ${fields[abc]}"
+      [ -n "$verbose" ] && echo "string b4 : $string"
+      
+      if [ "$string" = "" ] ; then
+        if [ "${fields[abc]}" = ""  ] ; then
+          if [ "$abc" = "1" ] ; then
+            :
+          else
+            string=" "
+          fi
+        else
+          #string=${fields[abc]}
+          string="${string}${delimiter}${fields[abc]}"
+        fi
       else
         string="${string}${delimiter}${fields[abc]}"
       fi
       
-      if  [[ "$debug" = "1" ]]; then
-        echo
-        echo "string : $string"
-      fi
-        
+      [ -n "$verbose" ] && echo "string 8r : $string"
+      
       ((abc++))
       
     done
     
-    if  [[ "$debug" = "1" ]]; then
+    if  [ -n "$verbose" ]; then
       echo
     fi
     
@@ -202,9 +223,8 @@ HEAD() {
 # MAIN 
 args=()
 
-#
 # Check voor pipe input
-if IFS='' read -t 0.1 -r -n 1 eerste_karakter; then
+if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
@@ -226,7 +246,8 @@ if IFS='' read -t 0.1 -r -n 1 eerste_karakter; then
   #   # if [ -n "$stdin_content" ]; then
   #       args+=("$stdin_content")
   #   # fi
- #  fi
+  # fi
+  
 fi
 
 [ -n "$verbose" ] && echo
@@ -256,8 +277,19 @@ for arg in "$@"; do
         
         -v|--verbose|-d|--debug)
         
-           if [ -n "$endofoptions" ]; then args+=("$arg") ; fi
+           if [ -n "$endofoptions" ]; then 
+             args+=("$arg") 
+           fi
+           
            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun=1
+            else   
+              args+=("$arg")
+            fi
+            ;;
             
         --)
             if [ -z "$endofoptions" ]; then
@@ -285,6 +317,16 @@ for arg in "$@"; do
     esac
     
 done
+
+if [ -n "$verbose" ] ; then
+  echo
+  echo "number of arguments : ${#args[@]}"
+  echo "stdin_content : =>$stdin_content<="
+  for ((abc=0; abc<${#args[@]}; abc++)); do
+    echo "argument $abc : =>${args[$((abc))]}<="
+  done
+  echo
+fi
 
 # Valideer aantal argumenten
 if [ "${#args[@]}" -lt 2 ]; then
