@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.10"
+VERSION="0.20.11"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -11,7 +11,7 @@ stopper="${char1}${char2}${char3}${char2}${char1}"
 show_usage() {
     cat << EOF
 
-Usage: $MYBASENAME <text> <start> <length>
+Usage: $MYBASENAME <text> <start> [<length>]
 
 Removes a substring starting at position with given length.
 Returns everything EXCEPT that substring.
@@ -20,7 +20,7 @@ Negative values count from the end.
 Parameters:
   text        - The string to modify (can be passed via pipe)
   start       - Start position (1 = first, -1 = last)
-  length      - Number of characters to remove:
+  length      - Number of characters to remove: (default = 1)
                  positive = remove characters to the right
                  negative = remove characters to the left
 
@@ -61,7 +61,7 @@ done
 RIP() {
     local string="$1"
     local start="$2"
-    local length="$3"
+    local length="${3:-1}"
     local len=${#string}
     local result=""
     
@@ -211,15 +211,15 @@ for arg in "$@"; do
 done
 
 # Valideer aantal argumenten
-if [ "${#args[@]}" -lt 3 ]; then
-    echo "$MYBASENAME: Need text, start position, and length" >&2
-    show_usage
+if [ "${#args[@]}" -lt 2 ]; then
+    echo "$MYBASENAME: Need text, start position, and optionally length" >&2
+    # show_usage
     exit 1
 fi
 
 if [ "${#args[@]}" -gt 3 ]; then
     echo "$MYBASENAME: Too many arguments" >&2
-    show_usage
+    # show_usage
     exit 1
 fi
 
