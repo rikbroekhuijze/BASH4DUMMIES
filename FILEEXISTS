@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.2.5"
+VERSION="0.2.6"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -17,7 +17,7 @@ show_usage() {
     
 Usage: $MYBASENAME "<file>"
        
-Returns true(1) if file exists, else returns false(1).
+Returns true(0) if file exists, else returns false(1).
 
 Examples:
   if $MYBASENAME "\$file" ; then
@@ -30,7 +30,8 @@ Options:
   -v, --version        Show version information
   --                   End of options 
           
-;°)
+ThankYous to btc: bc1ql4gnnnutzdufxdgyfj5mclr334h74ynp9rnucx  ;°)
+ 
   
 EOF
 }
