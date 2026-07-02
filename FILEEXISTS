@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.2.8"
+VERSION="0.2.10"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -101,10 +101,21 @@ for arg in "$@"; do
             args+=("$arg")
             ;;
         
-        -v|--verbose|-d|--debug)
+        ---verbose|--debug)
         
-           if [ -n "$endofoptions" ]; then args+=("$arg") ; fi
+           if [ -n "$endofoptions" ]; then 
+             args+=("$arg") 
+           fi
+           
            ;;
+        
+        --dryrun)
+            if [ -z "$endofoptions" ]; then
+              dryrun=1
+            else   
+              args+=("$arg")
+            fi
+            ;;
             
         --)
             if [ -z "$endofoptions" ]; then
