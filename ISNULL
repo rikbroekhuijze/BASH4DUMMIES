@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1.7"
+VERSION="0.1.9"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -38,14 +38,8 @@ verbose=""
 debug=""
 for arg in "$@"; do
     [ "$arg" = "--" ] && break
-    if [ "$arg" = "--verbose" ]; then
-        verbose=1
-        break
-    fi
-    if [ "$arg" = "--debug" ]; then
-        set -x
-        break
-    fi
+    [ "$arg" = "--verbose" ] && verbose=1
+    [ "$arg" = "--debug" ] && set -x
 done
 
 
@@ -57,7 +51,7 @@ ISNULL() {
 # MAIN 
 args=()
 # Check voor pipe input
-if IFS='' read -t 0.1 -r -n 1 eerste_karakter; then
+if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
     rest=$(cat; echo "$stopper")
     stdin_content="${eerste_karakter}${rest}"
@@ -68,18 +62,19 @@ if IFS='' read -t 0.1 -r -n 1 eerste_karakter; then
     # if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
     # fi
-# else
-  # # pipe or file
-  # # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop.
-  # if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
-  #   stdin_content=$(cat; echo "$stopper")
-  #   stdin_content="${stdin_content%$stopper}"
-  #   stdin_content="${stdin_content%$'\n'}"
-  #   # we willen "" ook vangen.
-  #   # if [ -n "$stdin_content" ]; then
-  #       args+=("$stdin_content")
-  #   # fi
- #  fi
+ else
+   # pipe or file
+   # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop. (f°ck bacon)
+   if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+     stdin_content=$(cat; echo "$stopper")
+     stdin_content="${stdin_content%$stopper}"
+     stdin_content="${stdin_content%$'\n'}"
+   #   we willen "" ook vangen.
+   #   if [ -n "$stdin_content" ]; then
+         args+=("$stdin_content")
+   #   fi
+   fi
+  
 fi
 
 [ -n "$verbose" ] && echo
