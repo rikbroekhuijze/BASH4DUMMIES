@@ -3,7 +3,7 @@
 # set -x  # Toont elke regel voor uitvoering
 # set -e  # Stopt bij eerste fout
 
-VERSION="0.1"
+VERSION="0.3.1"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -118,30 +118,43 @@ MAPFILE() {
 
 USED(){
   
-  # [ -n "$verbose" ] || [ -n "$dryrun" ] && echo
-  # [ -n "$verbose" ] || [ -n "$dryrun" ] && echo ":"
-  # [ -n "$verbose" ] || [ -n "$dryrun" ] && echo
-  # [ -n "$dryrun" ] && exit 0
-  # :
-  
-  df="$(df -h "$1")"
-  retval="$?"
-  if [ "$retval" = "0" ] ; then
-    df="$(TOKEN "$df" "2" $'\n')"
-    df="$(COLLAPSE "$df")"
-    df="$(TOKEN "$df" "3")"
-    unit="$(CHAR "$df" "-1")"
-    df="$(RIP "$df" "-1")"
-    echo "$df"" ""$unit"
-    return 0
-  fi
-  
-  echo "$df" >&2
-  return "$retval"
+    if [ -z "$1" ]; then
+        echo "Gebruik: USED /pad/naar/directory"
+        return 1
+    fi
     
+    if [ ! -d "$1" ]; then
+        echo "❌ Directory '$1' bestaat niet"
+        return 1
+    fi
+    
+    # Check of het een mountpoint is (root, /home, etc.)
+    TARGET=$(realpath "$1" 2>/dev/null || echo "$1")
+    if [ "$(df -P "$1" | tail -1 | awk '{print $6}')" = "$TARGET" ]; then
+    
+      #  df -h "$1" | awk 'NR==2 {printf "💾 Gebruikt: %s van %s (%.1f%%)\n", $3, $2, $5}'
+      
+      df="$(df -h "$1")"
+      df="$(TOKEN "$df" "2" $'\n')"
+      df="$(COLLAPSE "$df")"
+      df="$(TOKEN "$df" "3")"
+      first="$(RIP "$df" "-1")"
+      last="$(CHAR "$df" "-1")"
+      echo "$first"" ""$last"
+      
+    else
+    
+        du="$(du -sh --max-depth=1 "$1" 2>/dev/null | sort -hr | head -15 | \
+            awk '{printf "  %-8s %s\n", $1, $2}')"
+        
+        # Totaal (snel omdat we al gescand hebben)
+        total=$(du -sh "$1" 2>/dev/null | cut -f1)
+        first="$(RIP "$total" "-1")"
+        last="$(CHAR "$total" "-1")"
+        echo "$first"" ""$last"
+    fi
 }
 
- 
 # MAIN 
 args=()
 
@@ -157,18 +170,18 @@ if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
     # fi
-# else
-  # # pipe or file
-  # # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop.
-  # if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
-  #   stdin_content=$(cat; echo "$stopper")
-  #   stdin_content="${stdin_content%$stopper}"
-  #   stdin_content="${stdin_content%$'\n'}"
-  #   # we willen "" ook vangen.
-  #   # if [ -n "$stdin_content" ]; then
-  #       args+=("$stdin_content")
-  #   # fi
-  # fi
+ else
+   # pipe or file
+   # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop. (f°ck bacon)
+   if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+     stdin_content=$(cat; echo "$stopper")
+     stdin_content="${stdin_content%$stopper}"
+     stdin_content="${stdin_content%$'\n'}"
+   #   we willen "" ook vangen.
+   #   if [ -n "$stdin_content" ]; then
+         args+=("$stdin_content")
+   #   fi
+   fi
   
 fi
 
