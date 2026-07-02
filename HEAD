@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.13"
+VERSION="0.20.15"
 MYBASENAME=$(basename "$0")
 SCRIPTNAME="$MYBASENAME"
 
@@ -141,6 +141,7 @@ HEAD() {
     local result=""
     local stopnumber
     local last
+    local word
     
     if [[ "$haystack" = "" ]]; then
       return 0
@@ -169,6 +170,7 @@ HEAD() {
     MAPFILE "$haystack" "$delimiter" "fields"
     
     last=${#fields[@]}
+    [ -n "$verbose" ] && echo "last : $last"
     
     # Bereken start stop
     if [ "$amount" -gt 0 ]; then
@@ -181,32 +183,28 @@ HEAD() {
     
     abc=1
     string=""
-    while [ $abc -le "$stopnumber" ]; do
+    while [ "$abc" -le "$stopnumber" ]; do
+      
+      word="${fields[abc]}"
       
       [ -n "$verbose" ] && echo
       [ -n "$verbose" ] && echo "$abc : ${fields[abc]}"
-      [ -n "$verbose" ] && echo "string b4 : $string"
+      [ -n "$verbose" ] && echo "word : $word"
+      [ -n "$verbose" ] && echo "string b4 : =>$string<="
       
-      if [ "$string" = "" ] ; then
-        if [ "${fields[abc]}" = ""  ] ; then
-          if [ "$abc" = "1" ] ; then
-            :
-          else
-            string=" "
-          fi
-        else
-          #string=${fields[abc]}
-          string="${string}${delimiter}${fields[abc]}"
-        fi
+      if [ "$abc"  = 1 ] ; then
+        string="$word"
       else
-        string="${string}${delimiter}${fields[abc]}"
+        string="$string""$delimiter""$word"
       fi
       
-      [ -n "$verbose" ] && echo "string 8r : $string"
+      [ -n "$verbose" ] && echo "string 8r : =>$string<="
       
       ((abc++))
       
     done
+    
+    [ "$string" = "$delimiter" ] && string=""
     
     if  [ -n "$verbose" ]; then
       echo
@@ -235,18 +233,18 @@ if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # if [ -n "$stdin_content" ]; then
         args+=("$stdin_content")
     # fi
-# else
-  # # pipe or file
-  # # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop.
-  # if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
-  #   stdin_content=$(cat; echo "$stopper")
-  #   stdin_content="${stdin_content%$stopper}"
-  #   stdin_content="${stdin_content%$'\n'}"
-  #   # we willen "" ook vangen.
-  #   # if [ -n "$stdin_content" ]; then
-  #       args+=("$stdin_content")
-  #   # fi
-  # fi
+ else
+   # pipe or file
+   # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop. (f°ck bacon)
+   if [ -p /dev/stdin ] || [ -f /dev/stdin ] ; then
+     stdin_content=$(cat; echo "$stopper")
+     stdin_content="${stdin_content%$stopper}"
+     stdin_content="${stdin_content%$'\n'}"
+   #   we willen "" ook vangen.
+   #   if [ -n "$stdin_content" ]; then
+         args+=("$stdin_content")
+   #   fi
+   fi
   
 fi
 
