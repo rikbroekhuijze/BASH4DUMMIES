@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="0.20.23"
+VERSION="0.20.24"
 MYBASENAME=$(basename "$0")
 
 char1=$'\x01'
@@ -187,6 +187,7 @@ TOKEN() {
 args=()
 
 #
+stdin_content=""
 # Check voor pipe input
 if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # Er is daadwerkelijk data. Lees de rest, voeg de marker toe en knip 'm er weer af. (grab the newline)
@@ -195,10 +196,10 @@ if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
     # Verwijder marker + eventuele newline
     stdin_content="${stdin_content%$stopper}"
     stdin_content="${stdin_content%$'\n'}"
-    # we willen "" ook vangen.
-    # if [ -n "$stdin_content" ]; then
-        args+=("$stdin_content")
-    # fi
+    # we willen "" toch NIET vangen.
+    if [ -n "$stdin_content" ]; then
+      args+=("$stdin_content")
+    fi
  else
    # pipe or file
    # bacon (en anderen) openen een pipe intern. beiden (-p en -f ) reageren daarop. (f°ck bacon)
@@ -206,12 +207,11 @@ if IFS='' read -t 0.01 -r -n 1 eerste_karakter; then
      stdin_content=$(cat; echo "$stopper")
      stdin_content="${stdin_content%$stopper}"
      stdin_content="${stdin_content%$'\n'}"
-   #   we willen "" ook vangen.
-   #   if [ -n "$stdin_content" ]; then
-         args+=("$stdin_content")
-   #   fi
+     # we willen "" toch NIET vangen.
+     if [ -n "$stdin_content" ]; then
+       args+=("$stdin_content")
+     fi
    fi
-  
 fi
 
 [ -n "$verbose" ] && echo
