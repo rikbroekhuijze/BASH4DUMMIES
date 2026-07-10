@@ -44,6 +44,18 @@ for arg in "$@"; do
     [ "$arg" = "--debug" ] && set -x
 done
 
+if [ -n "$verbose" ] ; then
+  echo
+  echo "$MYBASENAME"
+  echo
+  echo "All arguments one by one:"
+  abc=1
+  for arg in "$@"; do
+    echo "$abc : $arg"
+    ((abc ++))
+  done
+fi  
+
 ISFILE()     { [[ -f "$1" ]]; }                          
 
 # MAIN 
